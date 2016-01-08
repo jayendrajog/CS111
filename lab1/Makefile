@@ -7,3 +7,7 @@ simpsh.o: simpsh.c
 
 simpsh: simpsh.o
 	$(CC) simpsh.o -o simpsh
+
+clean:
+	-rm -f simpsh.o
+	-rm -f simpsh
