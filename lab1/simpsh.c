@@ -20,6 +20,10 @@ main(int argc, char *argv[])
         COMMAND,
         VERBOSE
     };
+    enum BOOL{
+        FALSE,
+        TRUE
+    };
     
     static struct option the_options[] = {
         {"rdonly", required_argument, 0, RDONLY},
