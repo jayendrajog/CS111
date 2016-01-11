@@ -5,8 +5,13 @@
 #include <unistd.h> //  fork
 #include <sys/wait.h>   //  waitpid
 
-int
-main(int argc, char *argv[])
+void verbose_print(char *argv[], int index, int argc)
+{
+    
+}
+
+
+int main(int argc, char *argv[])
 {
     //int digit_optind = 0;
     int const NUM_OPTIONS = 4;
@@ -22,12 +27,18 @@ main(int argc, char *argv[])
     int status;
     pid_t pid;
     int n;
+    int index;
     
     enum FLAGS {
         RDONLY,
         WRONLY,
         COMMAND,
         VERBOSE
+    };
+
+    enum BOOL{
+        FALSE,
+        TRUE
     };
     
     static struct option the_options[] = {
@@ -80,13 +91,18 @@ main(int argc, char *argv[])
                 cpid_index++;
                 break;
             case VERBOSE:
+                index = optind - 1;
+                while(index < argc)
+                {
+                    printf("%s ", argv[index]);
+                    index++;
+                }
                 printf("--verbose is ON\n");
                 break;
             default:
                 printf("OOPS\n");
                 break;
-        }
-        
+        }   
     }
     
     n = cpid_index - 1;
@@ -135,3 +151,4 @@ main(int argc, char *argv[])
 //    
 //    exit(EXIT_SUCCESS);
 }
+
