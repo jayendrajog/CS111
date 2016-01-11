@@ -81,8 +81,8 @@ int main(int argc, char *argv[])
                 index = optind - 1;
                 while(index < argc)
                 {
-                    printf("%s ", argv[count]);
-                    count++;
+                    printf("%s ", argv[index]);
+                    index++;
                 }
                 //printf("--verbose is ON\n");
                 break;
