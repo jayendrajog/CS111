@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <getopt.h> //  parse
 #include <fcntl.h>  //  open
+#include <unistd.h> //  fork
+#include <sys/wait.h>   //  waitpid
 
 int
 main(int argc, char *argv[])
@@ -14,6 +16,13 @@ main(int argc, char *argv[])
     
     int **flags = malloc(sizeof(int*) * NUM_OPTIONS);
     int *fds = malloc(sizeof(int) * argc);    //  TODO: will allocate too much memory
+    pid_t *cpids = malloc(sizeof(pid_t) * argc);    //  TODO: will allocate too much memory
+    int cpid_index = 0;
+    
+    int status;
+    pid_t pid;
+    int n;
+    
     enum FLAGS {
         RDONLY,
         WRONLY,
@@ -52,9 +61,23 @@ main(int argc, char *argv[])
                 }
                 fd_index++; //  go to next place for save
                 break;
-                break;
             case COMMAND:
                 printf("--command is ON\n");
+                cpids[cpid_index] = fork();
+                if (cpids[cpid_index] == 0) {
+                    //  child process
+                    printf("Create child process number %i\n", cpid_index);
+                    exit(0);
+                }   //  TODO: check <0 (error)??
+                else {
+//                    n = cpid_index - 1;
+//                    while (n >= 0) {
+//                        pid = waitpid(cpids[n], &status, 0);
+//                        printf("Child number %i (PID %ld) exited with status 0x%x\n", n, (long)pid, status);
+//                        --n;    //  // TODO(pts): Remove pid from the pids array.
+//                    }
+                }
+                cpid_index++;
                 break;
             case VERBOSE:
                 printf("--verbose is ON\n");
@@ -64,6 +87,13 @@ main(int argc, char *argv[])
                 break;
         }
         
+    }
+    
+    n = cpid_index - 1;
+    while (n >= 0) {
+        pid = waitpid(cpids[n], &status, 0);
+        printf("Child number %i (PID %ld) exited with status 0x%x\n", n, (long)pid, status);
+        --n;    //  // TODO(pts): Remove pid from the pids array.
     }
     
     
