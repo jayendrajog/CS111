@@ -3,12 +3,6 @@
 #include <getopt.h> //  parse
 #include <fcntl.h>  //  open
 
-void verbose_print(char *argv[], int index, int argc)
-{
-    
-}
-
-
 int main(int argc, char *argv[])
 {
     //int digit_optind = 0;
@@ -16,6 +10,7 @@ int main(int argc, char *argv[])
     int option; //  TODO: don't know what this is for
     int option_index = 0;   //  TODO: might need to be reset to 0 for every iteration of the loop
     int fd_index = 0;
+    int count = 0;
     
     int **flags = malloc(sizeof(int*) * NUM_OPTIONS);
     int *fds = malloc(sizeof(int) * argc);    //  TODO: will allocate too much memory
@@ -49,7 +44,7 @@ int main(int argc, char *argv[])
                     fprintf(stderr, "Cannot open %s.\n", argv[optind-1]);
                     //exit(1);
                 } else {
-                    printf("%s is successfully opened with --rdonly option!\n", argv[optind-1]);
+                  //  printf("%s is successfully opened with --rdonly option!\n", argv[optind-1]);
                 }
                 fd_index++; //  go to next place for save
                 break;
@@ -59,25 +54,24 @@ int main(int argc, char *argv[])
                     fprintf(stderr, "Cannot open %s.\n", argv[optind-1]);
                     //exit(1);
                 } else {
-                    printf("%s is successfully opened with --wronly option!\n", argv[optind-1]);
+                 //   printf("%s is successfully opened with --wronly option!\n", argv[optind-1]);
                 }
                 fd_index++; //  go to next place for save
                 break;
-                break;
             case COMMAND:
-                printf("--command is ON\n");
+                //printf("--command is ON\n");
                 break;
             case VERBOSE:
-                int index = optind - 1;
-                while(index < argc)
+                count = optind;
+                while(count < argc)
                 {
-                    printf("%s ", argv[index]);
-                    index++;
+                    printf("%s ", argv[count]);
+                    count++;
                 }
-                printf("--verbose is ON\n");
+                //printf("--verbose is ON\n");
                 break;
             default:
-                printf("OOPS\n");
+               // printf("OOPS\n");
                 break;
         }   
     }
