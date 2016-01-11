@@ -3,8 +3,13 @@
 #include <getopt.h> //  parse
 #include <fcntl.h>  //  open
 
-int
-main(int argc, char *argv[])
+void verbose_print(char *argv[], int index, int argc)
+{
+    
+}
+
+
+int main(int argc, char *argv[])
 {
     //int digit_optind = 0;
     int const NUM_OPTIONS = 4;
@@ -14,12 +19,14 @@ main(int argc, char *argv[])
     
     int **flags = malloc(sizeof(int*) * NUM_OPTIONS);
     int *fds = malloc(sizeof(int) * argc);    //  TODO: will allocate too much memory
+    
     enum FLAGS {
         RDONLY,
         WRONLY,
         COMMAND,
         VERBOSE
     };
+
     enum BOOL{
         FALSE,
         TRUE
@@ -61,51 +68,17 @@ main(int argc, char *argv[])
                 printf("--command is ON\n");
                 break;
             case VERBOSE:
+                int index = optind - 1;
+                while(index < argc)
+                {
+                    printf("%s ", argv[index]);
+                    index++;
+                }
                 printf("--verbose is ON\n");
                 break;
             default:
                 printf("OOPS\n");
                 break;
-        }
-        
+        }   
     }
-    
-    
-    
-    
-//    int flags, opt;
-//    int nsecs, tfnd;
-//    
-//    nsecs = 0;
-//    tfnd = 0;
-//    flags = 0;
-//    
-//    while ((opt = getopt(argc, argv, "nt:")) != -1) {
-//        switch (opt) {
-//            case 'n':
-//                flags = 1;
-//                break;
-//            case 't':
-//                nsecs = atoi(optarg);
-//                tfnd = 1;
-//                break;
-//            default: /* '?' */
-//                fprintf(stderr, "Usage: %s [-t nsecs] [-n] name\n",
-//                        argv[0]);
-//                exit(EXIT_FAILURE);
-//        }
-//    }
-//    
-//    printf("flags=%d; tfnd=%d; optind=%d\n", flags, tfnd, optind);
-//    
-//    if (optind >= argc) {
-//        fprintf(stderr, "Expected argument after options\n");
-//        exit(EXIT_FAILURE);
-//    }
-//    
-//    printf("name argument = %s\n", argv[optind]);
-//    
-//    /* Other code omitted */
-//    
-//    exit(EXIT_SUCCESS);
 }
