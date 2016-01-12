@@ -4,11 +4,28 @@
 #include <fcntl.h>  //  open
 #include <unistd.h> //  fork
 #include <sys/wait.h>   //  waitpid
+#include <string.h>
 
+int check_option(char* opt_name)
+{
+    return (strcmp(opt_name, "--rdonly") == 0 || 
+            strcmp(opt_name, "--wronly") == 0 ||
+            strcmp(opt_name, "--command") == 0 ||
+            strcmp(opt_name, "--verbose") == 0 ||
+            strcmp(opt_name, "--rdwr") == 0 ||
+            strcmp(opt_name, "--pipe") == 0 ||
+            strcmp(opt_name, "--wait") == 0 ||
+            strcmp(opt_name, "--profile") == 0 ||
+            strcmp(opt_name, "--abort") == 0 ||
+            strcmp(opt_name, "--catch") == 0 ||
+            strcmp(opt_name, "--ignore") == 0 ||
+            strcmp(opt_name, "--default") == 0 ||
+            strcmp(opt_name, "--pause") == 0);
+}
 int main(int argc, char *argv[])
 {
     //int digit_optind = 0;
-    int const NUM_OPTIONS = 4;
+    int const NUM_OPTIONS = 13;
     int option; //  TODO: don't know what this is for
     int option_index = 0;   //  TODO: might need to be reset to 0 for every iteration of the loop
     int fd_index = 0;
@@ -24,11 +41,20 @@ int main(int argc, char *argv[])
     int n;
     int index;
     
-    enum FLAGS {
-        RDONLY,
-        WRONLY,
-        COMMAND,
-        VERBOSE
+    enum OPTIONS {
+        RDONLY, //0
+        WRONLY, //1
+        COMMAND, //2
+        VERBOSE, //3
+        RDWR, //4
+        PIPE, //5
+        WAIT, //6
+        PROFILE, //7
+        ABORT, //8
+        CATCH, //9
+        IGNORE, //10
+        DEFAULT, //11
+        PAUSE //12
     };
 
     enum BOOL{
@@ -41,6 +67,15 @@ int main(int argc, char *argv[])
         {"wronly", required_argument, 0, WRONLY},
         {"command", required_argument, 0, COMMAND},
         {"verbose", no_argument, 0, VERBOSE},
+        {"rdwr", required_argument, 0, RDWR},
+        {"pipe", no_argument, 0, PIPE},
+        {"wait", no_argument, 0, WAIT},
+        {"profile", no_argument, 0, PROFILE},
+        {"abort", no_argument, 0, ABORT},
+        {"catch", required_argument, 0, CATCH},
+        {"ignore", required_argument, 0, IGNORE},
+        {"default", required_argument, 0, DEFAULT},
+        {"pause", no_argument, 0, PAUSE},
         {0, 0, 0, 0}
     };
     
@@ -78,10 +113,13 @@ int main(int argc, char *argv[])
                 cpid_index++;
                 break;
             case VERBOSE:
-                index = optind - 1;
+                index = optind;
                 while(index < argc)
                 {
-                    printf("%s ", argv[index]);
+                    if(check_option(argv[index]))
+                        profilentf("\n%s ", argv[index]);
+                    else 
+                        printf("%s ", argv[index]);
                     index++;
                 }
                 //printf("--verbose is ON\n");
