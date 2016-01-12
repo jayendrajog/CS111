@@ -23,6 +23,8 @@ int main(int argc, char *argv[])
     pid_t pid;
     int n;
     int index;
+    int cmd_count;
+    int cmd_index;
     
     enum FLAGS {
         RDONLY,
@@ -73,6 +75,19 @@ int main(int argc, char *argv[])
                 if (cpids[cpid_index] == 0) {
                     //  child process
                     printf("Create child process number %i\n", cpid_index);
+                    
+                    //int command_ios[3];
+                    //command_ios[0] =
+                    cmd_count = 0;
+                    cmd_index = optind-1;
+                    while (cmd_index < argc) {  //  count number of arguments after --command
+                        if (argv[cmd_index][0] == '-' && argv[cmd_index][1] == '-')
+                            break;
+                        cmd_count++;
+                        cmd_index++;
+                    }
+                    //char command
+                    printf("There are %i arguments associated with this --command\n", cmd_count);
                     exit(0);
                 } 
                 cpid_index++;
