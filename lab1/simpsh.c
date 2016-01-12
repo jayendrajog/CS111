@@ -4,6 +4,7 @@
 #include <fcntl.h>  //  open
 #include <unistd.h> //  fork
 #include <sys/wait.h>   //  waitpid
+#include <string.h> //  strcpy
 
 int main(int argc, char *argv[])
 {
@@ -73,18 +74,19 @@ int main(int argc, char *argv[])
                 printf("--command is ON\n");
                 cpids[cpid_index] = fork();
                 if (cpids[cpid_index] == 0) {
-                    //  child process
+                    //  create child process
                     printf("Create child process number %i\n", cpid_index);
                     
+                    //  count number of arguments after --command
                     cmd_count = 0;
                     cmd_index = optind-1;
-                    while (cmd_index < argc) {  //  count number of arguments after --command
+                    while (cmd_index < argc) {
                         if (argv[cmd_index][0] == '-' && argv[cmd_index][1] == '-')
                             break;
                         cmd_count++;
                         cmd_index++;
                     }
-                    //printf("There are %i arguments associated with this --command\n", cmd_count);
+                    argv[cmd_index] = '\0'; //  NOTE: seems like you can modify argv, which is super sweet, cuz the child get it's own copy
                     if (cmd_count < 4) {
                         fprintf(stderr, "Yo bruh you need at least four args after --command\n");
                         exit(1);
@@ -94,16 +96,22 @@ int main(int argc, char *argv[])
                     cmd_index = optind-1;   //  use this to access std i, o, e args
                     //printf("Std input will use %i\nStd ouput will use %i\nStd error will use %i\n", strtol(argv[cmd_index], NULL, 10), strtol(argv[cmd_index+1], NULL, 10), strtol(argv[cmd_index+2], NULL, 10));
 
-                    //  strtol "converts the initial part of the string in nptr to a long integer"
-                    dup2(strtol(argv[cmd_index], NULL, 10), 0);
-                    dup2(strtol(argv[cmd_index+1], NULL, 10), 1);
-                    dup2(strtol(argv[cmd_index+2], NULL, 10), 2);
+                    //  NOTE: strtol "converts the initial part of the string in nptr to a long integer"
+                    dup2(fds[strtol(argv[cmd_index], NULL, 10)], 0);
+                    dup2(fds[strtol(argv[cmd_index+1], NULL, 10)], 1);
+                    dup2(fds[strtol(argv[cmd_index+2], NULL, 10)], 2);
+                    
+                    //  prepare arg for execvp
+                    //char *cmd_args[cmd_count-3];  //  TODO: wait, this works?
+                    //for (cmd_index += 3; cmd_index < optind; )
+                    //printf("I hope this work: %s\n", argv[cmd_index+3]);
+                    //printf("I hope this work: %s\n", argv[cmd_index+4]);
+                    
+                    //  TODO: idk why the first argument we pass in is this thing...
+                    execvp(argv[cmd_index+3], &argv[cmd_index+3]);
                     
                     
-                    char *cmd_args[cmd_count];  //  TODO: wait, this works?
-                    
-                    
-                    exit(0);
+                    //exit(0);
                 } 
                 cpid_index++;
                 break;
