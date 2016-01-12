@@ -76,8 +76,6 @@ int main(int argc, char *argv[])
                     //  child process
                     printf("Create child process number %i\n", cpid_index);
                     
-                    //int command_ios[3];
-                    //command_ios[0] =
                     cmd_count = 0;
                     cmd_index = optind-1;
                     while (cmd_index < argc) {  //  count number of arguments after --command
@@ -86,8 +84,25 @@ int main(int argc, char *argv[])
                         cmd_count++;
                         cmd_index++;
                     }
-                    //char command
-                    printf("There are %i arguments associated with this --command\n", cmd_count);
+                    //printf("There are %i arguments associated with this --command\n", cmd_count);
+                    if (cmd_count < 4) {
+                        fprintf(stderr, "Yo bruh you need at least four args after --command\n");
+                        exit(1);
+                    }
+                    
+                    //  set fds
+                    cmd_index = optind-1;   //  use this to access std i, o, e args
+                    //printf("Std input will use %i\nStd ouput will use %i\nStd error will use %i\n", strtol(argv[cmd_index], NULL, 10), strtol(argv[cmd_index+1], NULL, 10), strtol(argv[cmd_index+2], NULL, 10));
+
+                    //  strtol "converts the initial part of the string in nptr to a long integer"
+                    dup2(strtol(argv[cmd_index], NULL, 10), 0);
+                    dup2(strtol(argv[cmd_index+1], NULL, 10), 1);
+                    dup2(strtol(argv[cmd_index+2], NULL, 10), 2);
+                    
+                    
+                    char *cmd_args[cmd_count];  //  TODO: wait, this works?
+                    
+                    
                     exit(0);
                 } 
                 cpid_index++;
