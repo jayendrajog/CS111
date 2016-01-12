@@ -4,7 +4,7 @@
 #include <fcntl.h>  //  open
 #include <unistd.h> //  fork
 #include <sys/wait.h>   //  waitpid
-#include <string.h>
+#include <string.h> //  strcpy
 
 int check_option(char* opt_name)
 {
@@ -22,6 +22,7 @@ int check_option(char* opt_name)
             strcmp(opt_name, "--default") == 0 ||
             strcmp(opt_name, "--pause") == 0);
 }
+
 int main(int argc, char *argv[])
 {
     //int digit_optind = 0;
@@ -40,6 +41,8 @@ int main(int argc, char *argv[])
     pid_t pid;
     int n;
     int index;
+    int cmd_count;
+    int cmd_index;
     
     enum OPTIONS {
         RDONLY, //0
@@ -106,9 +109,41 @@ int main(int argc, char *argv[])
                 printf("--command is ON\n");
                 cpids[cpid_index] = fork();
                 if (cpids[cpid_index] == 0) {
-                    //  child process
+                    //  create child process
                     printf("Create child process number %i\n", cpid_index);
-                    exit(0);
+                    
+                    //  count number of arguments after --command
+                    cmd_count = 0;
+                    cmd_index = optind-1;
+                    while (cmd_index < argc) {
+                        if (argv[cmd_index][0] == '-' && argv[cmd_index][1] == '-')
+                            break;
+                        cmd_count++;
+                        cmd_index++;
+                    }
+                    if (cmd_count < 4) {
+                        //  TODO: change message
+                        fprintf(stderr, "Yo bruh you need at least four args after --command\n");
+                        exit(1);
+                    }
+                    //  TODO: we get an error, and things don't work, if we have -stuff flags for commands
+                    
+                    //  prepare arg for execvp
+                    argv[cmd_index] = '\0';
+                    //  NOTE: seems like you can modify argv, which is super sweet, cuz the child get it's own copy
+                    
+                    //  set fds
+                    cmd_index = optind-1;   //  use this to access std i, o, e args
+
+                    //  NOTE: strtol "converts the initial part of the string in nptr to a long integer"
+                    dup2(fds[strtol(argv[cmd_index], NULL, 10)], 0);
+                    dup2(fds[strtol(argv[cmd_index+1], NULL, 10)], 1);
+                    dup2(fds[strtol(argv[cmd_index+2], NULL, 10)], 2);
+                    
+                    //  TODO: idk why the first argument we pass in is this thing...
+                    execvp(argv[cmd_index+3], &argv[cmd_index+3]);  //  cmd_index+3 is where the arg starts
+                    
+                    //exit(0);  //  for when we don't call execvp
                 } 
                 cpid_index++;
                 break;
