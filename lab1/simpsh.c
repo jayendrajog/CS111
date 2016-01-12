@@ -9,7 +9,7 @@
 int check_option(char* opt_name)
 {
     return (strcmp(opt_name, "--rdonly") == 0 || 
-            strcmp(opt_name, "--wronly") == 0 ||
+            strcmp(opt_name, "--wronly") == 0 || 
             strcmp(opt_name, "--command") == 0 ||
             strcmp(opt_name, "--verbose") == 0 ||
             strcmp(opt_name, "--rdwr") == 0 ||
@@ -32,6 +32,8 @@ int main(int argc, char *argv[])
     int fd_index = 0;
     int count = 0;
     
+    char* verbose_strings = malloc(argc * 10 * sizeof(char));
+    int verbose_string_index = 0;
     int **flags = malloc(sizeof(int*) * NUM_OPTIONS);
     int *fds = malloc(sizeof(int) * argc);    //  TODO: will allocate too much memory
     pid_t *cpids = malloc(sizeof(pid_t) * argc);    //  TODO: will allocate too much memory
@@ -63,8 +65,8 @@ int main(int argc, char *argv[])
     enum BOOL{
         FALSE,
         TRUE
-    };
-    
+    } Verbose_ON = FALSE;
+
     static struct option the_options[] = {
         {"rdonly", required_argument, 0, RDONLY},
         {"wronly", required_argument, 0, WRONLY},
@@ -87,6 +89,15 @@ int main(int argc, char *argv[])
             case RDONLY:
                 //printf("--rdonly is ON\n");
                 //printf("optind is %d and file to open with --rdonly is %s\n", optind, argv[optind-1]);
+                if(Verbose_ON)
+                {
+                    index = optind - 1;
+                    strcat(verbose_strings, argv[index-1]);
+                    strcat(verbose_strings, " ");
+                    strcat(verbose_strings, argv[index]);
+                    printf("%s\n", verbose_strings);
+                    memset(verbose_strings, 0, argc * 10 * sizeof(char));
+                }
                 if ((fds[fd_index] = open(argv[optind-1], O_RDONLY)) == -1) {
                     fprintf(stderr, "Cannot open %s.\n", argv[optind-1]);
                     //exit(1);
@@ -97,6 +108,15 @@ int main(int argc, char *argv[])
                 break;
             case WRONLY:
                 //printf("--wronly is ON\n");
+                if(Verbose_ON)
+                {
+                    index = optind - 1;
+                    strcat(verbose_strings, argv[index-1]);
+                    strcat(verbose_strings, " ");
+                    strcat(verbose_strings, argv[index]);
+                    printf("%s\n", verbose_strings);
+                    memset(verbose_strings, 0, argc * 10 * sizeof(char));
+                }
                 if ((fds[fd_index] = open(argv[optind-1], O_WRONLY)) == -1) {
                     fprintf(stderr, "Cannot open %s.\n", argv[optind-1]);
                     //exit(1);
@@ -106,7 +126,21 @@ int main(int argc, char *argv[])
                 fd_index++; //  go to next place for save
                 break;
             case COMMAND:
-                printf("--command is ON\n");
+        //        printf("--command is ON\n");
+                if(Verbose_ON)
+                {
+                    index = optind - 1;
+                    strcat(verbose_strings, argv[index-1]);
+                    while(index < argc && !check_option(argv[index]))
+                    {
+                        strcat(verbose_strings, " ");
+                        strcat(verbose_strings, argv[index]);
+                        index++;
+                    }
+                    printf("%s\n", verbose_strings);
+                    memset(verbose_strings, 0, argc * 10 * sizeof(char));
+                
+                }
                 cpids[cpid_index] = fork();
                 if (cpids[cpid_index] == 0) {
                     //  create child process
@@ -148,18 +182,25 @@ int main(int argc, char *argv[])
                 cpid_index++;
                 break;
             case VERBOSE:
-                index = optind;
-                while(index < argc)
-                {
-                    if(check_option(argv[index]))
-                        profilentf("\n%s ", argv[index]);
-                    else 
-                        printf("%s ", argv[index]);
-                    index++;
-                }
+                Verbose_ON = TRUE;
+                // index = optind;
+                // while(index < argc)
+                // {
+                //     if(check_option(argv[index]))
+                //         printf("\n%s ", argv[index]);
+                //     else 
+                //         printf("%s ", argv[index]);
+                //     index++;
+                // }
                 //printf("--verbose is ON\n");
                 break;
             default:
+                if(Verbose_ON)
+                {
+                    index = optind - 1;
+                    strcat(verbose_strings, argv[index]);
+                    strcat(verbose_strings, " ");
+                }
                // printf("OOPS\n");
                 break;
         }   
