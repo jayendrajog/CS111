@@ -43,6 +43,7 @@ int main(int argc, char *argv[])
     int index;
     int cmd_count;
     int cmd_index;
+    int old_optind;
     
     enum OPTIONS {
         RDONLY, //0
@@ -106,41 +107,46 @@ int main(int argc, char *argv[])
                 fd_index++; //  go to next place for save
                 break;
             case COMMAND:
-                printf("--command is ON\n");
+                //printf("--command is ON\n");
+                
+                //  count number of arguments after --command
+                cmd_count = 0;
+                cmd_index = optind-1;
+                while (cmd_index < argc) {
+                    if (argv[cmd_index][0] == '-' && argv[cmd_index][1] == '-')
+                        break;
+                    cmd_count++;
+                    cmd_index++;
+                }
+                
+                if (cmd_count < 4) {
+                    //  TODO: change message
+                    fprintf(stderr, "Yo bruh you need at least four args after --command\n");
+                    exit(1);
+                }
+                //  TODO: we get an error, and things don't work, if we have -stuff flags for commands
+                
+                //  save optind and modify optind so getopt_long will jump to the next --options (long options)
+                old_optind = optind;
+                optind = cmd_index;
+                
                 cpids[cpid_index] = fork();
                 if (cpids[cpid_index] == 0) {
                     //  create child process
-                    printf("Create child process number %i\n", cpid_index);
-                    
-                    //  count number of arguments after --command
-                    cmd_count = 0;
-                    cmd_index = optind-1;
-                    while (cmd_index < argc) {
-                        if (argv[cmd_index][0] == '-' && argv[cmd_index][1] == '-')
-                            break;
-                        cmd_count++;
-                        cmd_index++;
-                    }
-                    if (cmd_count < 4) {
-                        //  TODO: change message
-                        fprintf(stderr, "Yo bruh you need at least four args after --command\n");
-                        exit(1);
-                    }
-                    //  TODO: we get an error, and things don't work, if we have -stuff flags for commands
+                    //printf("Create child process number %i\n", cpid_index);
                     
                     //  prepare arg for execvp
                     argv[cmd_index] = '\0';
                     //  NOTE: seems like you can modify argv, which is super sweet, cuz the child get it's own copy
                     
                     //  set fds
-                    cmd_index = optind-1;   //  use this to access std i, o, e args
+                    cmd_index = old_optind - 1;   //  use this to access std i, o, e args
 
                     //  NOTE: strtol "converts the initial part of the string in nptr to a long integer"
                     dup2(fds[strtol(argv[cmd_index], NULL, 10)], 0);
                     dup2(fds[strtol(argv[cmd_index+1], NULL, 10)], 1);
                     dup2(fds[strtol(argv[cmd_index+2], NULL, 10)], 2);
                     
-                    //  TODO: idk why the first argument we pass in is this thing...
                     execvp(argv[cmd_index+3], &argv[cmd_index+3]);  //  cmd_index+3 is where the arg starts
                     
                     //exit(0);  //  for when we don't call execvp
@@ -152,7 +158,7 @@ int main(int argc, char *argv[])
                 while(index < argc)
                 {
                     if(check_option(argv[index]))
-                        profilentf("\n%s ", argv[index]);
+                        printf("\n%s ", argv[index]);
                     else 
                         printf("%s ", argv[index]);
                     index++;
