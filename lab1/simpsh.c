@@ -188,20 +188,18 @@ int main(int argc, char *argv[])
                     cmd_index++;
                 }
                 
-                if (cmd_count < 4) {
-                    //  TODO: change message
-                    fprintf(stderr, "Yo bruh you need at least four args after --command\n");
-                    exit(1);
-                }
-                //  TODO: we get an error, and things don't work, if we have -stuff flags for commands
-                
                 //  save optind and modify optind so getopt_long will jump to the next --options (long options)
                 old_optind = optind;
                 optind = cmd_index;
                 cpids[cpid_index] = fork();
                 if (cpids[cpid_index] == 0) {
-                    //  create child process
-                    //printf("Create child process number %i\n", cpid_index);
+                    
+                    //  check number of arguments (put in child so other --command can still run)
+                    if (cmd_count < 4) {
+                        //  TODO: change message
+                        fprintf(stderr, "Missing operands for --command\n");
+                        exit(1);
+                    }
                     
                     //  prepare arg for execvp
                     argv[cmd_index] = '\0';
@@ -210,6 +208,20 @@ int main(int argc, char *argv[])
                     //  set fds
                     cmd_index = old_optind - 1;   //  use this to access std i, o, e args
 
+                    //  check fds
+                    if (strtol(argv[cmd_index], NULL, 10) >= fd_index || strtol(argv[cmd_index], NULL, 10) < 0) {
+                        fprintf(stderr, "Bad file descriptor\n");
+                        exit(1);
+                    }
+                    if (strtol(argv[cmd_index+1], NULL, 10) >= fd_index || strtol(argv[cmd_index+1], NULL, 10) < 0) {
+                        fprintf(stderr, "Bad file descriptor\n");
+                        exit(1);
+                    }
+                    if (strtol(argv[cmd_index+2], NULL, 10) >= fd_index || strtol(argv[cmd_index+2], NULL, 10) < 0) {
+                        fprintf(stderr, "Bad file descriptor\n");
+                        exit(1);
+                    }
+                        
                     //  NOTE: strtol "converts the initial part of the string in nptr to a long integer"
                     dup2(fds[strtol(argv[cmd_index], NULL, 10)], 0);
                     dup2(fds[strtol(argv[cmd_index+1], NULL, 10)], 1);
@@ -278,7 +290,7 @@ int main(int argc, char *argv[])
     n = cpid_index - 1;
     while (n >= 0) {
         pid = waitpid(cpids[n], &status, 0);
-        printf("Child number %i (PID %ld) exited with status 0x%x\n", n, (long)pid, status);
+        //printf("Child number %i (PID %ld) exited with status 0x%x\n", n, (long)pid, status);
         --n;    //  // TODO(pts): Remove pid from the pids array.
     }
     
