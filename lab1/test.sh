@@ -1,3 +1,5 @@
+#! /bin/bash
+
 function should_fail() {
 	result=$?;
 	
