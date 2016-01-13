@@ -22,4 +22,4 @@ check:
 dist: lab1-$(USER).tar.gz
 
 lab1-$(USER).tar.gz: $(DIST_SOURCES)
-	tar -cvf lab1-$(USER).tar.gz $(DIST_SOURCES)
+	tar -cvzf lab1-$(USER).tar.gz $(DIST_SOURCES)
