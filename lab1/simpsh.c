@@ -4,7 +4,8 @@
 #include <fcntl.h>  //  open
 #include <unistd.h> //  fork
 #include <sys/wait.h>   //  waitpid
-#include <string.h> //  strcpy
+#include <string.h> //  str stuff
+#include <errno.h>  //  errno
 
 int check_option(char* opt_name)
 {
@@ -45,7 +46,7 @@ int main(int argc, char *argv[])
     
     char* verbose_strings = malloc(argc * 10 * sizeof(char));
     int verbose_string_index = 0;
-    int **flags = malloc(sizeof(int*) * NUM_OPTIONS);
+    //int **flags = malloc(sizeof(int*) * NUM_OPTIONS);
     int *fds = malloc(sizeof(int) * argc);    //  TODO: will allocate too much memory
     pid_t *cpids = malloc(sizeof(pid_t) * argc);    //  TODO: will allocate too much memory
     int cpid_index = 0;
@@ -280,5 +281,19 @@ int main(int argc, char *argv[])
         printf("Child number %i (PID %ld) exited with status 0x%x\n", n, (long)pid, status);
         --n;    //  // TODO(pts): Remove pid from the pids array.
     }
+    
+    //  close fds
+    for (index = 0; index < fd_index; index++) {
+        if (fds[index] == -1)   //  this didn't open successfully
+            continue;
+        if (close(fds[index]))  //  0 for success, -1 for error
+            fprintf(stderr, "Something is wrong with close! %s\n", strerror(errno));
+    }
+    
+    //  free memory
+    free(fds);
+    free(cpids);
+    fds = cpids = NULL;
+    
 }
 
