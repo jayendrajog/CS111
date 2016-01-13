@@ -20,7 +20,18 @@ int check_option(char* opt_name)
             strcmp(opt_name, "--catch") == 0 ||
             strcmp(opt_name, "--ignore") == 0 ||
             strcmp(opt_name, "--default") == 0 ||
-            strcmp(opt_name, "--pause") == 0);
+            strcmp(opt_name, "--pause") == 0 ||
+            strcmp(opt_name, "--append") == 0 ||
+            strcmp(opt_name, "--cloexec") == 0 ||
+            strcmp(opt_name, "--creat") == 0 ||
+            strcmp(opt_name, "--directory") == 0 ||
+            strcmp(opt_name, "--dsync") == 0 ||
+            strcmp(opt_name, "--excl") == 0 ||
+            strcmp(opt_name, "--nofollow") == 0 ||
+            strcmp(opt_name, "--nonblock") == 0 ||
+            strcmp(opt_name, "--rsync") == 0 ||
+            strcmp(opt_name, "--sync") == 0 ||
+            strcmp(opt_name, "--trunc") == 0 );
 }
 
 int main(int argc, char *argv[])
@@ -60,7 +71,20 @@ int main(int argc, char *argv[])
         CATCH, //9
         IGNORE, //10
         DEFAULT, //11
-        PAUSE //12
+        PAUSE, //12
+
+        //file flags
+        APPEND, //13
+        CLOEXEC, //14
+        CREAT, //15
+        DIRECTORY, //16
+        DSYNC, //17
+        EXCL, //18
+        NOFOLLOW, //19
+        NONBLOCK, //20
+        RSYNC, //21
+        SYNC, //22
+        TRUNC //23
     };
 
     enum BOOL{
@@ -82,6 +106,17 @@ int main(int argc, char *argv[])
         {"ignore", required_argument, 0, IGNORE},
         {"default", required_argument, 0, DEFAULT},
         {"pause", no_argument, 0, PAUSE},
+        {"append", optional_argument, 0, APPEND},
+        {"cloexec", optional_argument, 0, CLOEXEC},
+        {"creat", optional_argument, 0, CREAT},
+        {"directory", optional_argument, 0, DIRECTORY},
+        {"dsync", optional_argument, 0, DSYNC},
+        {"excl", optional_argument, 0, EXCL},
+        {"nofollow", optional_argument, 0, NOFOLLOW},
+        {"nonblock", optional_argument, 0, NONBLOCK},
+        {"rsync", optional_argument, 0, RSYNC},
+        {"sync", optional_argument, 0, SYNC},
+        {"trunc", optional_argument, 0, TRUNC},
         {0, 0, 0, 0}
     };
     
@@ -127,7 +162,6 @@ int main(int argc, char *argv[])
                 fd_index++; //  go to next place for save
                 break;
             case COMMAND:
-<<<<<<< HEAD
         //        printf("--command is ON\n");
                 if(Verbose_ON)
                 {
@@ -141,10 +175,7 @@ int main(int argc, char *argv[])
                     }
                     printf("%s\n", verbose_strings);
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
-                
                 }
-=======
-                //printf("--command is ON\n");
                 
                 //  count number of arguments after --command
                 cmd_count = 0;
@@ -166,8 +197,6 @@ int main(int argc, char *argv[])
                 //  save optind and modify optind so getopt_long will jump to the next --options (long options)
                 old_optind = optind;
                 optind = cmd_index;
-                
->>>>>>> 0c726c198e7b8492d015b859362d8bdf87768721
                 cpids[cpid_index] = fork();
                 if (cpids[cpid_index] == 0) {
                     //  create child process
@@ -192,7 +221,6 @@ int main(int argc, char *argv[])
                 cpid_index++;
                 break;
             case VERBOSE:
-<<<<<<< HEAD
                 Verbose_ON = TRUE;
                 // index = optind;
                 // while(index < argc)
@@ -203,18 +231,34 @@ int main(int argc, char *argv[])
                 //         printf("%s ", argv[index]);
                 //     index++;
                 // }
-=======
-                index = optind;
-                while(index < argc)
-                {
-                    if(check_option(argv[index]))
-                        printf("\n%s ", argv[index]);
-                    else 
-                        printf("%s ", argv[index]);
-                    index++;
-                }
->>>>>>> 0c726c198e7b8492d015b859362d8bdf87768721
                 //printf("--verbose is ON\n");
+                break;
+            case RDWR:
+            case CATCH:
+            case IGNORE:
+            case DEFAULT:
+                if(Verbose_ON)
+                {
+                    index = optind - 1;
+                    strcat(verbose_strings, argv[index-1]);
+                    strcat(verbose_strings, " ");
+                    strcat(verbose_strings, argv[index]);
+                    printf("%s\n", verbose_strings);
+                    memset(verbose_strings, 0, argc * 10 * sizeof(char));
+                }
+                break;
+            case PIPE:
+            case WAIT:
+            case PROFILE:
+            case ABORT:
+            case PAUSE:
+                if(Verbose_ON)
+                {
+                    index = optind - 1;
+                    strcat(verbose_strings, argv[index]);
+                    printf("%s\n", verbose_strings);
+                    memset(verbose_strings, 0, argc * 10 * sizeof(char));
+                }
                 break;
             default:
                 if(Verbose_ON)
@@ -227,6 +271,8 @@ int main(int argc, char *argv[])
                 break;
         }   
     }
+    // if(verbose_strings[0] != '\0')
+    //     printf("%s\n", verbose_strings);
     
     n = cpid_index - 1;
     while (n >= 0) {
