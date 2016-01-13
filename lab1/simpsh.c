@@ -293,7 +293,9 @@ int main(int argc, char *argv[])
     //  free memory
     free(fds);
     free(cpids);
+    free(verbose_strings);
     fds = cpids = NULL;
+    verbose_strings = NULL;
     
 }
 
