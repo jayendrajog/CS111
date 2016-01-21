@@ -36,7 +36,7 @@
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("CS 111 RAM Disk");
 // EXERCISE: Pass your names into the kernel as the module's authors.
-MODULE_AUTHOR("Skeletor");
+MODULE_AUTHOR("Jay and Anthony");
 
 #define OSPRD_MAJOR	222
 
@@ -48,6 +48,11 @@ module_param(nsectors, int, 0);
 
 struct my_list {	// need this to use linux/list
 	pid_t pid;
+	struct list_head list;
+};
+
+struct my_ticket_list {
+	unsigned ticket_number;
 	struct list_head list;
 };
 
@@ -74,6 +79,7 @@ typedef struct osprd_info {
 	struct my_list read_list;	// hold the pids of processes with read lock
 	pid_t write_lock_holder;	// -1 for available
 
+	struct my_ticket_list valid_ticket_list;	// keep track of valid tickets
 
 	// The following elements are used internally; you don't need
 	// to understand them.
@@ -234,6 +240,11 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 	(void) filp_writable, (void) d;
 
 	// Set 'r' to the ioctl's return value: 0 on success, negative on error
+	
+	struct my_ticket_list *ticket_tmp = NULL;
+	struct my_list *tmp = NULL;
+	struct list_head *pos = NULL, *q = NULL;
+	int wait_event_sig;
 
 	if (cmd == OSPRDIOCACQUIRE) {
 
@@ -283,36 +294,82 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		d->ticket_tail++;
 		osp_spin_unlock(&d->mutex);
 		
+		ticket_tmp = kmalloc(sizeof(struct my_ticket_list), GFP_ATOMIC);
+		ticket_tmp->ticket_number = my_ticket;
+		
+		osp_spin_lock(&d->mutex);
+		list_add_tail(&ticket_tmp->list, &d->valid_ticket_list.list);
+		osp_spin_unlock(&d->mutex);		
+		
 		if (filp_writable) {
-			// attempt to write-lock		
-			if (!wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && list_empty(&d->read_list.list) && d->write_lock_holder == -1))) {
-				// I'm ready...it's my time to shine!	
-				filp->f_flags |= F_OSPRD_LOCKED;
-				d->write_lock_holder = current->pid;
-				// TODO: do I need spin lock here? My guess is no b/c I'm in the if statement
-				d->ticket_head++;
-				r = 0;
+			// attempt to write-lock
+			wait_event_sig = wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && list_empty(&d->read_list.list) && d->write_lock_holder == -1));
+			if (wait_event_sig == 0 || wait_event_sig == -ERESTARTSYS) {
+				if (wait_event_sig == 0) {
+					// I'm ready...it's my time to shine!	
+					filp->f_flags |= F_OSPRD_LOCKED;
+					osp_spin_lock(&d->mutex);
+					d->write_lock_holder = current->pid;
+					osp_spin_unlock(&d->mutex);
+					r = 0;
+				}
+
+				// Delete this ticket from the queue (valid_ticket_list) because we just served it (either actually served it, or because of signal)	
+				osp_spin_lock(&d->mutex);
+				pos = d->valid_ticket_list.list.next;
+				ticket_tmp = list_entry(pos, struct my_ticket_list, list);
+				list_del(pos);
+				kfree(ticket_tmp);
+				osp_spin_unlock(&d->mutex);
+				
+				// Set ticket_head to the next one in queue
+				osp_spin_lock(&d->mutex);
+				if (list_empty_careful(&d->valid_ticket_list.list)) {
+					d->ticket_head = d->ticket_tail;
+				} else {
+					ticket_tmp = list_entry(d->valid_ticket_list.list.next, struct my_ticket_list, list);
+					d->ticket_head = ticket_tmp->ticket_number;
+				}
+				osp_spin_unlock(&d->mutex);
+
 				// NOTE: we don't call wake_up_all here cuz once the write-lock is locked, nobody can do anything until write-lock is released
 			}
-
-
 		} else {
 			// attempt to read-lock
-			if (!wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && d->write_lock_holder == -1))) {
-				// I'm ready...it's my time to shine!
-				filp->f_flags |= F_OSPRD_LOCKED;
-				struct my_list *tmp = kmalloc(sizeof(struct my_list), GFP_ATOMIC);
-				// TODO: does kmalloc ever fail?
-				tmp->pid = current->pid;
-				list_add_tail((struct list_head *)&tmp->list, &d->read_list.list);
-				// TODO: do I need spin lock here? My guess is no b/c I'm in the if statement
-				d->ticket_head++;
+			wait_event_sig = wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && d->write_lock_holder == -1));
+			if (wait_event_sig == 0 || wait_event_sig == -ERESTARTSYS) {
+				if (wait_event_sig == 0) {
+					// I'm ready...it's my time to shine!
+					filp->f_flags |= F_OSPRD_LOCKED;
+					tmp = kmalloc(sizeof(struct my_list), GFP_ATOMIC);
+					// TODO: does kmalloc ever fail?
+					tmp->pid = current->pid;
+					osp_spin_lock(&d->mutex);
+					list_add_tail((struct list_head *)&tmp->list, &d->read_list.list);
+					osp_spin_unlock(&d->mutex);
+					r = 0;
+				}
+			
+				// Delete this ticket from the queue (valid_ticket_list) because we just served it (either actually served it, or because of signal)	
+				osp_spin_lock(&d->mutex);
+				pos = d->valid_ticket_list.list.next;
+				ticket_tmp = list_entry(pos, struct my_ticket_list, list);
+				list_del(pos);
+				kfree(ticket_tmp);
+				osp_spin_unlock(&d->mutex);
+				
+				// Set ticket_head to the next one in queue
+				osp_spin_lock(&d->mutex);
+				if (list_empty_careful(&d->valid_ticket_list.list)) {
+					d->ticket_head = d->ticket_tail;
+				} else {
+					ticket_tmp = list_entry(d->valid_ticket_list.list.next, struct my_ticket_list, list);
+					d->ticket_head = ticket_tmp->ticket_number;
+				}
+				osp_spin_unlock(&d->mutex);
 				wake_up_all(&d->blockq);
-				r = 0;
 			}	
 		}	
-	
-
 	} else if (cmd == OSPRDIOCTRYACQUIRE) {
 
 		// EXERCISE: ATTEMPT to lock the ramdisk.
@@ -343,7 +400,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 			if (d->ticket_head == d->ticket_tail && d->write_lock_holder == -1) {
 				// I'm ready...it's my time to shine!
 				filp->f_flags |= F_OSPRD_LOCKED;
-				struct my_list *tmp = kmalloc(sizeof(struct my_list), GFP_ATOMIC);
+				tmp = kmalloc(sizeof(struct my_list), GFP_ATOMIC);
 				// TODO: does kmalloc ever fail?
 				tmp->pid = current->pid;
 				list_add_tail((struct list_head *)&tmp->list, &d->read_list.list);
@@ -379,7 +436,6 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 			}
 		} else {
 			// attempt to release a read lock
-			struct list_head *pos, *q;
 			int pid_exist = 0;
 			list_for_each_safe(pos, q, &d->read_list.list) {
 				if ((list_entry(pos, struct my_list, list))->pid == current->pid) {
@@ -415,6 +471,7 @@ static void osprd_setup(osprd_info_t *d)
 	/* Add code here if you add fields to osprd_info_t. */
 	
 	INIT_LIST_HEAD(&d->read_list.list);
+	INIT_LIST_HEAD(&d->valid_ticket_list.list);
 	d->write_lock_holder = -1;	// initialize to available
 }
 
