@@ -58,6 +58,8 @@ int main(int argc, char *argv[])
     int cmd_count;
     int cmd_index;
     int old_optind;
+
+    int oflag_val = 0;
     
     enum OPTIONS {
         RDONLY, //0
@@ -135,12 +137,11 @@ int main(int argc, char *argv[])
                     printf("%s\n", verbose_strings);
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
-                if ((fds[fd_index] = open(argv[optind-1], O_RDONLY)) == -1) {
+                if ((fds[fd_index] = open(argv[optind-1], O_RDONLY | oflag_val)) == -1) {
                     fprintf(stderr, "Cannot open %s.\n", argv[optind-1]);
                     //exit(1);
-                } else {
-                  //  printf("%s is successfully opened with --rdonly option!\n", argv[optind-1]);
                 }
+                oflag_val = 0;
                 fd_index++; //  go to next place for save
                 break;
             case WRONLY:
@@ -154,16 +155,32 @@ int main(int argc, char *argv[])
                     printf("%s\n", verbose_strings);
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
-                if ((fds[fd_index] = open(argv[optind-1], O_WRONLY)) == -1) {
+                if ((fds[fd_index] = open(argv[optind-1], O_WRONLY | oflag_val)) == -1) {
                     fprintf(stderr, "Cannot open %s.\n", argv[optind-1]);
                     //exit(1);
-                } else {
-                 //   printf("%s is successfully opened with --wronly option!\n", argv[optind-1]);
+                } 
+                oflag_val = 0;
+                fd_index++; //  go to next place for save
+                break;
+            case RDWR:
+                if(Verbose_ON)
+                {
+                    index = optind - 1;
+                    strcat(verbose_strings, argv[index-1]);
+                    strcat(verbose_strings, " ");
+                    strcat(verbose_strings, argv[index]);
+                    printf("%s\n", verbose_strings);
+                    memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
+                if ((fds[fd_index] = open(argv[optind-1], O_RDWR | oflag_val)) == -1) {
+                    fprintf(stderr, "Cannot open %s.\n", argv[optind-1]);
+                    //exit(1);
+                }
+                oflag_val = 0;
                 fd_index++; //  go to next place for save
                 break;
             case COMMAND:
-        //        printf("--command is ON\n");
+        //        pr    tf("--command is ON\n");
                 if(Verbose_ON)
                 {
                     index = optind - 1;
@@ -177,7 +194,7 @@ int main(int argc, char *argv[])
                     printf("%s\n", verbose_strings);
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
-                
+                 oflag_val = 0;
                 //  count number of arguments after --command
                 cmd_count = 0;
                 cmd_index = optind-1;
@@ -188,18 +205,20 @@ int main(int argc, char *argv[])
                     cmd_index++;
                 }
                 
+                if (cmd_count < 4) {
+                    //  TODO: change message
+                    fprintf(stderr, "Yo bruh you need at least four args after --command\n");
+                    exit(1);
+                }
+                //  TODO: we get an error, and things don't work, if we have -stuff flags for commands
+                
                 //  save optind and modify optind so getopt_long will jump to the next --options (long options)
                 old_optind = optind;
                 optind = cmd_index;
                 cpids[cpid_index] = fork();
                 if (cpids[cpid_index] == 0) {
-                    
-                    //  check number of arguments (put in child so other --command can still run)
-                    if (cmd_count < 4) {
-                        //  TODO: change message
-                        fprintf(stderr, "Missing operands for --command\n");
-                        exit(1);
-                    }
+                    //  create child process
+                    //printf("Create child process number %i\n", cpid_index);
                     
                     //  prepare arg for execvp
                     argv[cmd_index] = '\0';
@@ -208,20 +227,6 @@ int main(int argc, char *argv[])
                     //  set fds
                     cmd_index = old_optind - 1;   //  use this to access std i, o, e args
 
-                    //  check fds
-                    if (strtol(argv[cmd_index], NULL, 10) >= fd_index || strtol(argv[cmd_index], NULL, 10) < 0) {
-                        fprintf(stderr, "Bad file descriptor\n");
-                        exit(1);
-                    }
-                    if (strtol(argv[cmd_index+1], NULL, 10) >= fd_index || strtol(argv[cmd_index+1], NULL, 10) < 0) {
-                        fprintf(stderr, "Bad file descriptor\n");
-                        exit(1);
-                    }
-                    if (strtol(argv[cmd_index+2], NULL, 10) >= fd_index || strtol(argv[cmd_index+2], NULL, 10) < 0) {
-                        fprintf(stderr, "Bad file descriptor\n");
-                        exit(1);
-                    }
-                        
                     //  NOTE: strtol "converts the initial part of the string in nptr to a long integer"
                     dup2(fds[strtol(argv[cmd_index], NULL, 10)], 0);
                     dup2(fds[strtol(argv[cmd_index+1], NULL, 10)], 1);
@@ -235,6 +240,7 @@ int main(int argc, char *argv[])
                 break;
             case VERBOSE:
                 Verbose_ON = TRUE;
+                 oflag_val = 0;
                 // index = optind;
                 // while(index < argc)
                 // {
@@ -246,7 +252,6 @@ int main(int argc, char *argv[])
                 // }
                 //printf("--verbose is ON\n");
                 break;
-            case RDWR:
             case CATCH:
             case IGNORE:
             case DEFAULT:
@@ -259,6 +264,7 @@ int main(int argc, char *argv[])
                     printf("%s\n", verbose_strings);
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
+                 oflag_val = 0;
                 break;
             case PIPE:
             case WAIT:
@@ -271,6 +277,106 @@ int main(int argc, char *argv[])
                     strcat(verbose_strings, argv[index]);
                     printf("%s\n", verbose_strings);
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
+                }
+                oflag_val = 0;
+                break;
+            case APPEND:
+                oflag_val |= O_APPEND;
+                if(Verbose_ON)
+                {
+                    index = optind - 1;
+                    strcat(verbose_strings, argv[index]);
+                    strcat(verbose_strings, " ");
+                }
+                break;
+            case CLOEXEC:
+                oflag_val |= O_CLOEXEC;
+                if(Verbose_ON)
+                {
+                    index = optind - 1;
+                    strcat(verbose_strings, argv[index]);
+                    strcat(verbose_strings, " ");
+                }
+                break;
+            case CREAT:
+                oflag_val |= O_CREAT;
+                if(Verbose_ON)
+                {
+                    index = optind - 1;
+                    strcat(verbose_strings, argv[index]);
+                    strcat(verbose_strings, " ");
+                }
+                break;
+            case DIRECTORY:
+                oflag_val  |= O_DIRECTORY;
+                if(Verbose_ON)
+                {
+                    index = optind - 1;
+                    strcat(verbose_strings, argv[index]);
+                    strcat(verbose_strings, " ");
+                }
+                break;
+            case DSYNC:
+                oflag_val  |= O_DSYNC;
+                if(Verbose_ON)
+                {
+                    index = optind - 1;
+                    strcat(verbose_strings, argv[index]);
+                    strcat(verbose_strings, " ");
+                }
+                break;
+            case EXCL:
+                oflag_val  |= O_EXCL;
+                if(Verbose_ON)
+                {
+                    index = optind - 1;
+                    strcat(verbose_strings, argv[index]);
+                    strcat(verbose_strings, " ");
+                }
+                break;
+            case NOFOLLOW:
+                oflag_val  |= O_NOFOLLOW;
+                if(Verbose_ON)
+                {
+                    index = optind - 1;
+                    strcat(verbose_strings, argv[index]);
+                    strcat(verbose_strings, " ");
+                }
+                break;
+            case NONBLOCK:
+                oflag_val  |= O_NONBLOCK;
+                if(Verbose_ON)
+                {
+                    index = optind - 1;
+                    strcat(verbose_strings, argv[index]);
+                    strcat(verbose_strings, " ");
+                }
+                break;
+            case RSYNC:
+                oflag_val |= O_RSYNC;
+                if(Verbose_ON)
+                {
+                    index = optind - 1;
+                    strcat(verbose_strings, argv[index]);
+                    strcat(verbose_strings, " ");
+                }
+                break;
+            case SYNC:
+                oflag_val |= O_SYNC;
+                if(Verbose_ON)
+                {
+                    index = optind - 1;
+                    strcat(verbose_strings, argv[index]);
+                    strcat(verbose_strings, " ");
+                }
+                break;
+            case TRUNC:
+                oflag_val |= O_TRUNC;
+                if(Verbose_ON)
+                {
+                    index = optind - 1;
+                    strcat(verbose_strings, argv[index]);
+                    strcat(verbose_strings, " ");
                 }
                 break;
             default:
@@ -290,7 +396,7 @@ int main(int argc, char *argv[])
     n = cpid_index - 1;
     while (n >= 0) {
         pid = waitpid(cpids[n], &status, 0);
-        //printf("Child number %i (PID %ld) exited with status 0x%x\n", n, (long)pid, status);
+        printf("Child number %i (PID %ld) exited with status 0x%x\n", n, (long)pid, status);
         --n;    //  // TODO(pts): Remove pid from the pids array.
     }
     
