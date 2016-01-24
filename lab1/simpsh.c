@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <getopt.h> //  parse
 #include <fcntl.h>  //  open
-#include <unistd.h> //  fork
+#include <unistd.h> //  fork and pipe
 #include <sys/wait.h>   //  waitpid
 #include <string.h> //  str stuff
 #include <errno.h>  //  errno
@@ -48,8 +48,10 @@ int main(int argc, char *argv[])
     int verbose_string_index = 0;
     //int **flags = malloc(sizeof(int*) * NUM_OPTIONS);
     int *fds = malloc(sizeof(int) * argc);    //  TODO: will allocate too much memory
+    char *pipeFds = malloc(sizeof(char) * argc);    //  keep track of pipe fds
     pid_t *cpids = malloc(sizeof(pid_t) * argc);    //  TODO: will allocate too much memory
     int cpid_index = 0;
+    int pipefd[2];  //  to store pipe fds
     
     int status;
     pid_t pid;
@@ -58,6 +60,7 @@ int main(int argc, char *argv[])
     int cmd_count;
     int cmd_index;
     int old_optind;
+    int index_i, index_o, index_e;
 
     int oflag_val = 0;
     
@@ -142,6 +145,7 @@ int main(int argc, char *argv[])
                     //exit(1);
                 }
                 oflag_val = 0;
+                pipeFds[fd_index] = 'n';    //  not pipe
                 fd_index++; //  go to next place for save
                 break;
             case WRONLY:
@@ -160,6 +164,7 @@ int main(int argc, char *argv[])
                     //exit(1);
                 } 
                 oflag_val = 0;
+                pipeFds[fd_index] = 'n';    //  not pipe
                 fd_index++; //  go to next place for save
                 break;
             case RDWR:
@@ -180,7 +185,6 @@ int main(int argc, char *argv[])
                 fd_index++; //  go to next place for save
                 break;
             case COMMAND:
-        //        pr    tf("--command is ON\n");
                 if(Verbose_ON)
                 {
                     index = optind - 1;
@@ -215,27 +219,82 @@ int main(int argc, char *argv[])
                 //  save optind and modify optind so getopt_long will jump to the next --options (long options)
                 old_optind = optind;
                 optind = cmd_index;
+                
+                //  set fds
+                cmd_index = old_optind - 1;   //  use this to access std i, o, e args
+                
+                //  TODO: check strtol, return 0 on error
+                //  NOTE: strtol "converts the initial part of the string in nptr to a long integer"
+                index_i = strtol(argv[cmd_index], NULL, 10);
+                index_o = strtol(argv[cmd_index+1], NULL, 10);
+                index_e = strtol(argv[cmd_index+2], NULL, 10);
+                
+                
                 cpids[cpid_index] = fork();
                 if (cpids[cpid_index] == 0) {
                     //  create child process
                     //printf("Create child process number %i\n", cpid_index);
                     
                     //  prepare arg for execvp
-                    argv[cmd_index] = '\0';
+                    argv[optind] = '\0';
                     //  NOTE: seems like you can modify argv, which is super sweet, cuz the child get it's own copy
                     
-                    //  set fds
-                    cmd_index = old_optind - 1;   //  use this to access std i, o, e args
-
-                    //  NOTE: strtol "converts the initial part of the string in nptr to a long integer"
-                    dup2(fds[strtol(argv[cmd_index], NULL, 10)], 0);
-                    dup2(fds[strtol(argv[cmd_index+1], NULL, 10)], 1);
-                    dup2(fds[strtol(argv[cmd_index+2], NULL, 10)], 2);
+//                    //  set fds
+//                    cmd_index = old_optind - 1;   //  use this to access std i, o, e args
+//                    
+//                    //  TODO: check strtol, return 0 on error
+//                    //  NOTE: strtol "converts the initial part of the string in nptr to a long integer"
+//                    index_i = strtol(argv[cmd_index], NULL, 10);
+//                    index_o = strtol(argv[cmd_index+1], NULL, 10);
+//                    index_e = strtol(argv[cmd_index+2], NULL, 10);
                     
-                    execvp(argv[cmd_index+3], &argv[cmd_index+3]);  //  cmd_index+3 is where the arg starts
+                    if (pipeFds[index_i] == 'r') {
+                        printf("About to close unused write %d\n", index_i+1);
+                        close(fds[index_i+1]);  //  close unused write end of pipe
+                    }
+                    if (pipeFds[index_o] == 'w') {
+                        printf("About to close unused read %d\n", index_o-1);
+                        close(fds[index_o-1]);  //  close unused read end of pipe
+                    }
                     
+                    printf("Input is %d, output is %d, err is %d\n", index_i, index_o, index_e);
+                    
+//                    dup2(fds[index_i], 0);
+//                    dup2(fds[index_o], 1);
+//                    dup2(fds[index_e], 2);
+                    
+                    if (dup2(fds[index_i], 0) == -1)
+                        fprintf(stderr, "dup2 on input %d failed\n", index_i);
+                    else if (dup2(fds[index_o], 1) == -1)
+                        fprintf(stderr, "dup2 on ouput %d failed\n", index_o);
+                    else if (dup2(fds[index_e], 2) == -1)
+                        fprintf(stderr, "dup2 on err %d failed\n", index_e);
+                    else
+                        printf("Dup2 success\n");
+                    
+                    if (execvp(argv[cmd_index+3], &argv[cmd_index+3]) == -1) {  //  cmd_index+3 is where the arg starts
+                        fprintf(stderr, "Execvp error %s\n", strerror(errno));
+                        exit(1);
+                    }
+                    exit(2);
                     //exit(0);  //  for when we don't call execvp
-                } 
+                } else {
+                    //  parent
+                    printf("I am parent\n");
+                    //printf("Input is %d\n", index_i);
+                    printf("Is input %d a pipe? %c\n", index_i, pipeFds[index_i]);
+                    if (pipeFds[index_i] == 'r') {
+                        printf("Parent about to close unused read %d\n", index_i);
+                        close(fds[index_i]);
+                        //close(fds[index_i+1]);
+                    }
+                    printf("Is output %d a pipe? %c\n", index_o, pipeFds[index_o]);
+                    if (pipeFds[index_o] == 'w') {
+                        printf("Parent about to close unused write %d\n", index_o);
+                        close(fds[index_o]);
+                        //close(fds[index_o-1]);
+                    }
+                }
                 cpid_index++;
                 break;
             case VERBOSE:
@@ -267,6 +326,17 @@ int main(int argc, char *argv[])
                  oflag_val = 0;
                 break;
             case PIPE:
+                printf("Pipe\n");
+                if (pipe(pipefd) == -1) {
+                    fprintf(stderr, "Failed to open pipe\n");
+                } else {
+                    //  success
+                    fds[fd_index] = pipefd[0];    //  read
+                    pipeFds[fd_index++] = 'r';    //  this is the read end
+                    fds[fd_index] = pipefd[1];    //  write
+                    pipeFds[fd_index++] = 'w';    //  this is the write end
+                }
+                break;
             case WAIT:
             case PROFILE:
             case ABORT:
@@ -394,6 +464,7 @@ int main(int argc, char *argv[])
     //     printf("%s\n", verbose_strings);
     
     n = cpid_index - 1;
+    printf("There are %d childs\n", n);
     while (n >= 0) {
         pid = waitpid(cpids[n], &status, 0);
         printf("Child number %i (PID %ld) exited with status 0x%x\n", n, (long)pid, status);
