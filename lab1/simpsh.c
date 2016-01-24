@@ -286,12 +286,14 @@ int main(int argc, char *argv[])
                     if (pipeFds[index_i] == 'r') {
                         printf("Parent about to close unused read %d\n", index_i);
                         close(fds[index_i]);
+                        fds[index_i] = -1;  //  set this to -1 so we won't close this again
                         //close(fds[index_i+1]);
                     }
                     printf("Is output %d a pipe? %c\n", index_o, pipeFds[index_o]);
                     if (pipeFds[index_o] == 'w') {
                         printf("Parent about to close unused write %d\n", index_o);
                         close(fds[index_o]);
+                        fds[index_o] = -1;  //  set this to -1 so we won't close this again
                         //close(fds[index_o-1]);
                     }
                 }
