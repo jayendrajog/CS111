@@ -398,16 +398,6 @@ int main(int argc, char *argv[])
                 }
                 oflag_val = 0;
                 break;
-            case ABORT:
-                if(Verbose_ON)
-                {
-                    index = optind - 1;
-                    strcat(verbose_strings, argv[index]);
-                    printf("%s\n", verbose_strings);
-                    memset(verbose_strings, 0, argc * 10 * sizeof(char));
-                }
-                int *a = NULL;
-                int t = *a;
             case APPEND:
                 oflag_val |= O_APPEND;
                 if(Verbose_ON)
