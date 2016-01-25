@@ -46,8 +46,21 @@ int main(int argc, char *argv[])
     int fd_index = 0;
     int count = 0;
     
-    char* verbose_strings = malloc(argc * 10 * sizeof(char));
-    int verbose_string_index = 0;
+    char* verbose_strings = malloc(argc * 10 * sizeof(char)); //keeps track of stuff verbose needs to print
+    int verbose_string_index = 0; //index to keep track of last used index
+    
+    //wait_string keeps running track of all characters to be outputted from wait
+    char wait_string[argc *100];
+    //wait_string2 helps in Cstring processing at the end
+    char wait_string2[argc*100];
+    //wait_string_ints keeps track of the exit statuses
+    int* wait_string_ints = malloc(argc * 10 * sizeof(int));
+    //wait_string_index is an index to keep track of last used index, used at the end
+    int wait_string_index = 0; 
+    //wait_string_index_ints keeps track of how many commands were run, used at the end
+    int wait_string_index_ints = 0; 
+    
+
     //int **flags = malloc(sizeof(int*) * NUM_OPTIONS);
     int *fds = malloc(sizeof(int) * argc);    //  TODO: will allocate too much memory
     char *pipeFds = malloc(sizeof(char) * argc);    //  keep track of pipe fds
@@ -100,7 +113,7 @@ int main(int argc, char *argv[])
     enum BOOL{
         FALSE,
         TRUE
-    } Verbose_ON = FALSE;
+    } Verbose_ON = FALSE, Wait_ON = FALSE;
 
     static struct option the_options[] = {
         {"rdonly", required_argument, 0, RDONLY},
@@ -188,20 +201,28 @@ int main(int argc, char *argv[])
                 fd_index++; //  go to next place for save
                 break;
             case COMMAND:
+                index = optind - 1;
+                strcat(verbose_strings, argv[index-1]);
+                while(index < argc && !check_option(argv[index]))
+                {
+                    strcat(verbose_strings, " ");
+                    strcat(verbose_strings, argv[index]);
+
+                    //this skips "--command 0 1 2" and looks only at the relevant command
+                    if(index > optind + 1)
+                    {
+                        strcat(wait_string, argv[index]);
+                        strcat(wait_string, " ");
+                    }
+                    index++;
+                }
+                strcat(wait_string, "\n");
                 if(Verbose_ON)
                 {
-                    index = optind - 1;
-                    strcat(verbose_strings, argv[index-1]);
-                    while(index < argc && !check_option(argv[index]))
-                    {
-                        strcat(verbose_strings, " ");
-                        strcat(verbose_strings, argv[index]);
-                        index++;
-                    }
                     printf("%s\n", verbose_strings);
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
-                 oflag_val = 0;
+                oflag_val = 0;
                 //  count number of arguments after --command
                 cmd_count = 0;
                 cmd_index = optind-1;
@@ -377,6 +398,15 @@ int main(int argc, char *argv[])
                 oflag_val = 0;
                 break;
             case WAIT:
+                if(Verbose_ON)
+                {
+                    index = optind - 1;
+                    strcat(verbose_strings, argv[index]);
+                    printf("%s\n", verbose_strings);
+                    memset(verbose_strings, 0, argc * 10 * sizeof(char));
+                }
+                Wait_ON = TRUE;
+                break;
             case PROFILE:
             case ABORT:
                 if(Verbose_ON)
@@ -388,6 +418,7 @@ int main(int argc, char *argv[])
                 }
                 int *a = NULL;
                 int t = *a;
+                break;
             case PAUSE:
                 if(Verbose_ON)
                 {
@@ -470,15 +501,15 @@ int main(int argc, char *argv[])
                     strcat(verbose_strings, " ");
                 }
                 break;
-            // case RSYNC:
-            //    oflag_val |= O_RSYNC;
-            //     if(Verbose_ON)
-            //     {
-            //         index = optind - 1;
-            //         strcat(verbose_strings, argv[index]);
-            //         strcat(verbose_strings, " ");
-            //     }
-            //     break;
+            case RSYNC:
+               oflag_val |= O_RSYNC;
+                if(Verbose_ON)
+                {
+                    index = optind - 1;
+                    strcat(verbose_strings, argv[index]);
+                    strcat(verbose_strings, " ");
+                }
+                break;
             case SYNC:
                 oflag_val |= O_SYNC;
                 if(Verbose_ON)
@@ -515,6 +546,26 @@ int main(int argc, char *argv[])
     while (n >= 0) {
         pid = waitpid(cpids[n], &status, 0);
         //  TODO: we don't need to print this do we??
+        if(Wait_ON)
+        { 
+            wait_string_ints[wait_string_index_ints] = status;
+            wait_string_index_ints++;
+            // printf("so far its %s\n", complete_wait_string);
+            // //makes it "0"
+            // wait_string2[0] = ('0' + status);
+            // //makes it "0 "
+            // strcat(wait_string2, " ");
+            // //makes it "0 sort"
+            // strcat(wait_string2, wait_string);
+            // //makes it "0 tr A-Z a-z\n 0 sort"
+            // strcat(complete_wait_string, wait_string2);
+
+            // strcat(complete_wait_string, "\n");
+            // memset(wait_string, 0, argc * 10 * sizeof(char));
+            // memset(wait_string2, 0, argc * 10 * sizeof(char));
+            //strcat(complete_wait_string, wait_string);
+           // printf("%s and exit status is %x", wait_string, status);
+        }
         //printf("Child number %i (PID %ld) exited with status 0x%x\n", n, (long)pid, status);
         --n;    //  // TODO(pts): Remove pid from the pids array.
     }
@@ -526,7 +577,24 @@ int main(int argc, char *argv[])
         if (close(fds[index]))  //  0 for success, -1 for error
             fprintf(stderr, "Something is wrong with close! %s\n", strerror(errno));
     }
-    
+
+    //make sure this is at the VERY END, right before memory is freed!!!
+    if(Wait_ON)
+    {
+        wait_string_index = 0;
+        for(index = 0; index < wait_string_index_ints; index++)
+        {
+            //n is a random variable used earlier, don't write any code after this involving n
+            for(n = 0; wait_string[wait_string_index] != '\n' && wait_string[wait_string_index] != '\0'; wait_string_index++, n++)
+            {
+                wait_string2[n] = wait_string[wait_string_index];
+            }    
+            wait_string_index++;
+            printf("%d %s\n", wait_string_ints[index], wait_string2);
+            memset(wait_string2, 0, argc * 100);
+        }
+    }
+    //printf("%s", complete_wait_string);
     //  free memory
     free(fds);
     free(cpids);
