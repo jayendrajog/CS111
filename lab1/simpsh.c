@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
     int cmd_count;
     int cmd_index;
     int old_optind;
-    int index_i, index_o, index_e;
+    int index_i, index_o, index_e, index_c; //  input, output, error, to close
 
     int oflag_val = 0;
     
@@ -224,22 +224,36 @@ int main(int argc, char *argv[])
                 //  set fds
                 cmd_index = old_optind - 1;   //  use this to access std i, o, e args
                 
-                //  TODO: check strtol, return 0 on error
                 //  NOTE: strtol "converts the initial part of the string in nptr to a long integer"
+                //  NOTE: check and break to the next option, don't even bother creating a child and run the command
+                errno = 0;
                 index_i = strtol(argv[cmd_index], NULL, 10);
+                if (errno) {
+                    fprintf(stderr, "Invalid file descriptor\n");
+                    break;
+                }
                 index_o = strtol(argv[cmd_index+1], NULL, 10);
+                if (errno) {
+                    fprintf(stderr, "Invalid file descriptor\n");
+                    break;
+                }
                 index_e = strtol(argv[cmd_index+2], NULL, 10);
-                if (index_i >= fd_index || index_i < 0) {
-                    fprintf(stderr, "Bad file descriptor\n");
-                    exit(1);
+                if (errno) {
+                    fprintf(stderr, "Invalid file descriptor\n");
+                    break;
                 }
-                if (index_o >= fd_index || index_o < 0) {
+                
+                if (index_i >= fd_index || index_i < 0 || (!index_i && argv[cmd_index][0] != '0')) {
                     fprintf(stderr, "Bad file descriptor\n");
-                    exit(1);
+                    break;
                 }
-                if (index_e >= fd_index || index_e < 0) {
+                if (index_o >= fd_index || index_o < 0 || (!index_o && argv[cmd_index+1][0] != '0')) {
                     fprintf(stderr, "Bad file descriptor\n");
-                    exit(1);
+                    break;
+                }
+                if (index_e >= fd_index || index_e < 0 || (!index_e && argv[cmd_index+2][0] != '0')) {
+                    fprintf(stderr, "Bad file descriptor\n");
+                    break;
                 }
                 
                 cpids[cpid_index] = fork();
@@ -303,9 +317,19 @@ int main(int argc, char *argv[])
                 if (argv[optind-1][0] == '-')
                     fprintf(stderr, "Missing operand for --close\n");
                 else {
-                    //  TODO: check strtol, return 0 on error
-                    close(fds[strtol(argv[optind-1], NULL, 10)]);
-                    fds[strtol(argv[optind-1], NULL, 10)] = -1;
+                    errno = 0;
+                    index_c = strtol(argv[optind-1], NULL, 10);
+                    if (errno || (!index_c && argv[optind-1][0] != '0'))    //  INT_MIN or INT_MAX or not an digit
+                        fprintf(stderr, "Invalid file descriptor\n");
+                    else if (index_c >= fd_index || index_c < 0)    //  out of range
+                        fprintf(stderr, "Bad file descriptor\n");
+                    else if (fds[index_c] == -1)
+                        //  already closed, do nothing
+                        ;
+                    else {
+                        close(fds[index_c]);
+                        fds[index_c] = -1;
+                    }
                 }
                 oflag_val = 0;
                 break;
