@@ -69,4 +69,26 @@ should_succeed "Testing sort command"
 tail -n 1 myTest/test2.txt | grep "xyz" > /dev/null
 should_succeed "Testing sort command"
 
+
+#pipe testing
+#clear file contents
+> myTest/test1.txt
+> myTest/test2.txt
+> myTest/test3.txt
+
+./simpsh --rdonly myTest/test1.txt --wronly myTest/test2.txt --wronly myTest/test3.txt --pipe --command 0 4 2 echo "Chris Harris Jr is the most underrated CB in the NFL" --command 3 1 2 tr a-z A-Z
+cat myTest/test2.txt | grep "CHRIS HARRIS JR IS THE MOST UNDERRATED CB IN THE NFL" > /dev/null
+should_succeed "Pipe with echo and tr works"
+
+echo "hello" >> myTest/test1.txt
+echo "xyz" >> myTest/test1.txt
+echo "def" >> myTest/test1.txt
+echo "true" >> myTest/test1.txt
+echo "abd" >> myTest/test1.txt
+
+./simpsh --rdonly myTest/test1.txt --wronly myTest/test2.txt --wronly myTest/test3.txt --pipe --pipe --command 0 4 2 sort --command 3 6 2 cat - - --command 5 1 2 tr a-z A-Z
+cat myTest/test2.txt | grep "TRUE" > /dev/null
+should_succeed "Double piping with sort and tr works"
+
+
 rm -rf myTest

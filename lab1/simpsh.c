@@ -447,7 +447,8 @@ int main(int argc, char *argv[])
     n = cpid_index - 1;
     while (n >= 0) {
         pid = waitpid(cpids[n], &status, 0);
-        printf("Child number %i (PID %ld) exited with status 0x%x\n", n, (long)pid, status);
+        //  TODO: we don't need to print this do we??
+        //printf("Child number %i (PID %ld) exited with status 0x%x\n", n, (long)pid, status);
         --n;    //  // TODO(pts): Remove pid from the pids array.
     }
     
