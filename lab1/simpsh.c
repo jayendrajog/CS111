@@ -590,7 +590,7 @@ int main(int argc, char *argv[])
                 wait_string2[n] = wait_string[wait_string_index];
             }    
             wait_string_index++;
-            printf("%d %s\n", wait_string_ints[index], wait_string2);
+            printf("%d %s\n", (wait_string_ints[index] & 0xff), wait_string2);
             memset(wait_string2, 0, argc * 100);
         }
     }
