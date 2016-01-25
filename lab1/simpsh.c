@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
                     printf("%s\n", verbose_strings);
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
-                if ((fds[fd_index] = open(argv[optind-1], O_RDONLY | oflag_val)) == -1) {
+                if ((fds[fd_index] = open(argv[optind-1], O_RDONLY | oflag_val, 0644)) == -1) {
                     fprintf(stderr, "Cannot open %s.\n", argv[optind-1]);
                     //exit(1);
                 }
@@ -177,7 +177,7 @@ int main(int argc, char *argv[])
                     printf("%s\n", verbose_strings);
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
-                if ((fds[fd_index] = open(argv[optind-1], O_WRONLY | oflag_val)) == -1) {
+                if ((fds[fd_index] = open(argv[optind-1], O_WRONLY | oflag_val, 0644)) == -1) {
                     fprintf(stderr, "Cannot open %s.\n", argv[optind-1]);
                 } 
                 oflag_val = 0;
@@ -194,7 +194,7 @@ int main(int argc, char *argv[])
                     printf("%s\n", verbose_strings);
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
-                if ((fds[fd_index] = open(argv[optind-1], O_RDWR | oflag_val)) == -1) {
+                if ((fds[fd_index] = open(argv[optind-1], O_RDWR | oflag_val, 0644)) == -1) {
                     fprintf(stderr, "Cannot open %s.\n", argv[optind-1]);
                 }
                 oflag_val = 0;
