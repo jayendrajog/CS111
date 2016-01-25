@@ -32,6 +32,7 @@ int check_option(char* opt_name)
             strcmp(opt_name, "--nonblock") == 0 ||
             strcmp(opt_name, "--rsync") == 0 ||
             strcmp(opt_name, "--sync") == 0 ||
+            strcmp(opt_name, "--close") == 0 ||
             strcmp(opt_name, "--trunc") == 0 );
 }
 
@@ -90,7 +91,9 @@ int main(int argc, char *argv[])
         NONBLOCK, //20
         RSYNC, //21
         SYNC, //22
-        TRUNC //23
+        TRUNC, //23
+        
+        CLOSE
     };
 
     enum BOOL{
@@ -107,6 +110,7 @@ int main(int argc, char *argv[])
         {"pipe", no_argument, 0, PIPE},
         {"wait", no_argument, 0, WAIT},
         {"profile", no_argument, 0, PROFILE},
+        {"close", required_argument, 0, CLOSE},
         {"abort", no_argument, 0, ABORT},
         {"catch", required_argument, 0, CATCH},
         {"ignore", required_argument, 0, IGNORE},
@@ -210,6 +214,7 @@ int main(int argc, char *argv[])
                 if (cmd_count < 4) {
                     fprintf(stderr, "Missing operands for --command\n");
                     exit(1);
+                    //  TODO: I don't think we are supposed to exit here tho, cuz this is still in parent
                 }
                 
                 //  save optind and modify optind so getopt_long will jump to the next --options (long options)
@@ -278,6 +283,7 @@ int main(int argc, char *argv[])
                     }
                 }
                 cpid_index++;
+                oflag_val = 0;
                 break;
             case VERBOSE:
                 Verbose_ON = TRUE;
@@ -293,6 +299,16 @@ int main(int argc, char *argv[])
                 // }
                 //printf("--verbose is ON\n");
                 break;
+            case CLOSE:
+                if (argv[optind-1][0] == '-')
+                    fprintf(stderr, "Missing operand for --close\n");
+                else {
+                    //  TODO: check strtol, return 0 on error
+                    close(fds[strtol(argv[optind-1], NULL, 10)]);
+                    fds[strtol(argv[optind-1], NULL, 10)] = -1;
+                }
+                oflag_val = 0;
+                break;
             case CATCH:
             case IGNORE:
             case DEFAULT:
@@ -305,7 +321,7 @@ int main(int argc, char *argv[])
                     printf("%s\n", verbose_strings);
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
-                 oflag_val = 0;
+                oflag_val = 0;
                 break;
             case PIPE:
                 if (pipe(pipefd) == -1) {
@@ -317,6 +333,7 @@ int main(int argc, char *argv[])
                     fds[fd_index] = pipefd[1];    //  write
                     pipeFds[fd_index++] = 'w';    //  this is the write end
                 }
+                oflag_val = 0;
                 break;
             case WAIT:
             case PROFILE:
