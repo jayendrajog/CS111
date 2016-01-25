@@ -208,11 +208,9 @@ int main(int argc, char *argv[])
                 }
                 
                 if (cmd_count < 4) {
-                    //  TODO: change message
-                    fprintf(stderr, "Yo bruh you need at least four args after --command\n");
+                    fprintf(stderr, "Missing operands for --command\n");
                     exit(1);
                 }
-                //  TODO: we get an error, and things don't work, if we have -stuff flags for commands
                 
                 //  save optind and modify optind so getopt_long will jump to the next --options (long options)
                 old_optind = optind;
@@ -226,6 +224,18 @@ int main(int argc, char *argv[])
                 index_i = strtol(argv[cmd_index], NULL, 10);
                 index_o = strtol(argv[cmd_index+1], NULL, 10);
                 index_e = strtol(argv[cmd_index+2], NULL, 10);
+                if (index_i >= fd_index || index_i < 0) {
+                    fprintf(stderr, "Bad file descriptor\n");
+                    exit(1);
+                }
+                if (index_o >= fd_index || index_o < 0) {
+                    fprintf(stderr, "Bad file descriptor\n");
+                    exit(1);
+                }
+                if (index_e >= fd_index || index_e < 0) {
+                    fprintf(stderr, "Bad file descriptor\n");
+                    exit(1);
+                }
                 
                 cpids[cpid_index] = fork();
                 if (cpids[cpid_index] == 0) {
