@@ -61,6 +61,8 @@ int main(int argc, char *argv[])
     int wait_string_index_ints = 0; 
     
 
+    int sig_num;
+
     //int **flags = malloc(sizeof(int*) * NUM_OPTIONS);
     int *fds = malloc(sizeof(int) * argc);    //  TODO: will allocate too much memory
     char *pipeFds = malloc(sizeof(char) * argc);    //  keep track of pipe fds
@@ -366,10 +368,10 @@ int main(int argc, char *argv[])
                 break;
             case CATCH:
             case IGNORE:
-            case DEFAULT:
+                index = optind - 1;
+                sig_num = strtol(argv[index], NULL, 0);
                 if(Verbose_ON)
                 {
-                    index = optind - 1;
                     strcat(verbose_strings, argv[index-1]);
                     strcat(verbose_strings, " ");
                     strcat(verbose_strings, argv[index]);
@@ -377,6 +379,21 @@ int main(int argc, char *argv[])
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
                 oflag_val = 0;
+                signal(sig_num, SIG_IGN);
+                break;
+            case DEFAULT:
+                index = optind - 1;
+                sig_num = strtol(argv[index], NULL, 0);
+                if(Verbose_ON)
+                {
+                    strcat(verbose_strings, argv[index-1]);
+                    strcat(verbose_strings, " ");
+                    strcat(verbose_strings, argv[index]);
+                    printf("%s\n", verbose_strings);
+                    memset(verbose_strings, 0, argc * 10 * sizeof(char));
+                }
+                oflag_val = 0;
+                signal(sig_num, SIG_DFL);
                 break;
             case PIPE: 
                 if(Verbose_ON)
