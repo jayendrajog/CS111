@@ -55,7 +55,8 @@ int main(int argc, char *argv[])
     int option_index = 0;   //  TODO: might need to be reset to 0 for every iteration of the loop
     int fd_index = 0;
     int count = 0;
-    
+    int return_val = 0;
+
     char* verbose_strings = malloc(argc * 10 * sizeof(char)); //keeps track of stuff verbose needs to print
     int verbose_string_index = 0; //index to keep track of last used index
     
@@ -173,6 +174,7 @@ int main(int argc, char *argv[])
                 }
                 if ((fds[fd_index] = open(argv[optind-1], O_RDONLY | oflag_val, 0644)) == -1) {
                     fprintf(stderr, "Cannot open %s.\n", argv[optind-1]);
+                    return_val = 1;
                     //exit(1);
                 }
                 oflag_val = 0;
@@ -192,6 +194,7 @@ int main(int argc, char *argv[])
                 }
                 if ((fds[fd_index] = open(argv[optind-1], O_WRONLY | oflag_val, 0644)) == -1) {
                     fprintf(stderr, "Cannot open %s.\n", argv[optind-1]);
+                    return_val = 1;
                 } 
                 oflag_val = 0;
                 pipeFds[fd_index] = 'n';    //  not pipe
@@ -209,6 +212,7 @@ int main(int argc, char *argv[])
                 }
                 if ((fds[fd_index] = open(argv[optind-1], O_RDWR | oflag_val, 0644)) == -1) {
                     fprintf(stderr, "Cannot open %s.\n", argv[optind-1]);
+                    return_val = 1;
                 }
                 oflag_val = 0;
                 fd_index++; //  go to next place for save
@@ -443,6 +447,7 @@ int main(int argc, char *argv[])
                 }
                 if (pipe(pipefd) == -1) {
                     fprintf(stderr, "Failed to open pipe\n");
+                    return_val = 1;
                 } else {
                     //  success
                     fds[fd_index] = pipefd[0];    //  read
@@ -655,6 +660,11 @@ int main(int argc, char *argv[])
     free(verbose_strings);
     fds = cpids = NULL;
     verbose_strings = NULL;
-    
+    for(index = 0; index < wait_string_index_ints; index++)
+    {
+        if(wait_string_ints[index] > return_val)
+            return_val = wait_string_ints[index];
+    }
+    return return_val;
 }
 
