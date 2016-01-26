@@ -45,7 +45,7 @@ void catch_sighandler(int signal) {
 }
 
 void ignore_sighandler(int signal) {
-    printf("ignorehandler getting called"); 
+    //printf("ignorehandler getting called");
 }
 
 int main(int argc, char *argv[])
