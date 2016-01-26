@@ -125,5 +125,9 @@ should_succeed "Testing --creat"
 cat myTest/test4.txt | grep "I was just born" > /dev/null
 should_fail "Testing --trunc"
 
+#check exit status
+./simpsh --rdonly myTest/test1.txt --command 0 0 0 jay
+echo $? | grep "127" > /dev/null
+should_succeed "Checking exit status"
 
 rm -rf myTest
