@@ -22,4 +22,6 @@ check:
 dist: lab1-$(USER).tar.gz
 
 lab1-$(USER).tar.gz: $(DIST_SOURCES)
-	tar -cvzf lab1-$(USER).tar.gz $(DIST_SOURCES)
+	mkdir lab1-$(USER)
+	mv $(DIST_SOURCES) lab1-$(USER)
+	tar -cvzf lab1-$(USER).tar.gz lab1-$(USER)
