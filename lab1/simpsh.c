@@ -201,6 +201,7 @@ int main(int argc, char *argv[])
                 fd_index++; //  go to next place for save
                 break;
             case COMMAND:
+                //  verbose related
                 index = optind - 1;
                 strcat(verbose_strings, argv[index-1]);
                 while(index < argc && !check_option(argv[index]))
@@ -223,6 +224,8 @@ int main(int argc, char *argv[])
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
                 oflag_val = 0;
+                
+                //  command execvp related
                 //  count number of arguments after --command
                 cmd_count = 0;
                 cmd_index = optind-1;
@@ -286,13 +289,6 @@ int main(int argc, char *argv[])
                     argv[optind] = '\0';
                     //  NOTE: seems like you can modify argv, which is super sweet, cuz the child get it's own copy
                     
-                    //  Note: child need to close unused end of pipe
-                    if (pipeFds[index_i] == 'r') {
-                        close(fds[index_i+1]);  //  close unused write end of pipe
-                    }
-                    if (pipeFds[index_o] == 'w') {
-                        close(fds[index_o-1]);  //  close unused read end of pipe
-                    }
                     
                     //  TODO: this could be buggy? maybe? if the first one fails, none of the rest will be executed
                     if (dup2(fds[index_i], 0) == -1)
@@ -302,6 +298,39 @@ int main(int argc, char *argv[])
                     else if (dup2(fds[index_e], 2) == -1)
                         fprintf(stderr, "dup2 on err %d failed\n", index_e);
                     
+                    
+                    
+                    for (index = 0; index < fd_index; index++) {
+                        if (fds[index] == -1)   //  this didn't open successfully
+                            continue;
+                        if (close(fds[index]))  //  0 for success, -1 for error
+                            fprintf(stderr, "Something is wrong with close! %s\n", strerror(errno));
+                    }
+                    
+                    
+                    
+                    //  Dear Anthony: this is too tedious, let's just close everything after dup2, lol
+                    
+//                    //  Note: child need to close unused end of pipe
+//                    if (pipeFds[index_i] == 'r') {
+//                        //printf("Child about to close unused write %d, the fd value is %d\n", index_i+1, fds[index_i+1]);
+//                        if (fds[index_i+1] != -1) {
+//                            printf("Child %d about to close unused write %d, the fd value is %d\n", cpid_index, index_i+1, fds[index_i+1]);
+//                            close(fds[index_i+1]);
+//                            fds[index_i+1] = -1;
+//                        }
+//                            //close(fds[index_i+1]);  //  close unused write end of pipe
+//                    }
+//                    if (pipeFds[index_o] == 'w') {
+//                        //printf("Child about to close unused read %d, the fd value is %d\n", index_o-1, fds[index_o-1]);
+//                        if (fds[index_o-1] != -1) {
+//                            printf("Child %d about to close unused read %d, the fd value is %d\n", cpid_index, index_o-1, fds[index_o-1]);
+//                            close(fds[index_o-1]);
+//                            fds[index_o-1] = -1;
+//                        }
+//                            //close(fds[index_o-1]);  //  close unused read end of pipe
+//                    }
+                    
                     if (execvp(argv[cmd_index+3], &argv[cmd_index+3]) == -1) {  //  cmd_index+3 is where the arg starts
                         fprintf(stderr, "Execvp error %s\n", strerror(errno));
                         exit(1);
@@ -310,12 +339,24 @@ int main(int argc, char *argv[])
                     //  parent
                     //  Note: In parent, we need to close the end of the pipe that's already used by child
                     if (pipeFds[index_i] == 'r') {
-                        close(fds[index_i]);
-                        fds[index_i] = -1;  //  set this to -1 so we won't close this again
+                        //printf("Parent about to close unused read %d, the fd value is %d\n", index_i, fds[index_i]);
+                        if (fds[index_i] != -1) {
+                            //printf("Parent about to close unused read %d, the fd value is %d\n", index_i, fds[index_i]);
+                            close(fds[index_i]);
+                            fds[index_i] = -1;
+                        }
+                            //close(fds[index_i]);
+                        //fds[index_i] = -1;  //  set this to -1 so we won't close this again
                     }
                     if (pipeFds[index_o] == 'w') {
-                        close(fds[index_o]);
-                        fds[index_o] = -1;  //  set this to -1 so we won't close this again
+                        //printf("Parent about to close unused write %d, the fd value is %d\n", index_o, fds[index_o]);
+                        if (fds[index_o] != -1) {
+                            //printf("Parent about to close unused write %d, the fd value is %d\n", index_o, fds[index_o]);
+                            close(fds[index_o]);
+                            fds[index_o] = -1;
+                        }
+                            //close(fds[index_o]);
+                        //fds[index_o] = -1;  //  set this to -1 so we won't close this again
                     }
                 }
                 cpid_index++;
