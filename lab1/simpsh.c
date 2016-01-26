@@ -43,6 +43,10 @@ void catch_sighandler(int signal) {
     exit(signal);
 }
 
+void ignore_sighandler(int signal) {
+    printf("ignorehandler getting called"); 
+}
+
 int main(int argc, char *argv[])
 {
     //int digit_optind = 0;
@@ -412,11 +416,8 @@ int main(int argc, char *argv[])
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
                 oflag_val = 0;
-                sig_num = strtol(argv[index], NULL, 0);
-                struct sigaction sa; 
-                sa.sa_handler = SIG_IGN;
-                sigaction(sig_num, &sa, NULL);
-                //sigaction(sig_num, SIG_IGN);
+                sig_num = (int) strtol(argv[index], NULL, 0);
+                signal(sig_num, SIG_IGN);
                 break;
             case DEFAULT:
                 index = optind - 1;
@@ -470,8 +471,7 @@ int main(int argc, char *argv[])
                     printf("%s\n", verbose_strings);
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
-                int *a = NULL;
-                int t = *a;
+                raise(SIGSEGV);
                 break;
             case PAUSE:
                 if(Verbose_ON)
