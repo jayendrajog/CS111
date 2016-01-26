@@ -305,6 +305,8 @@ int main(int argc, char *argv[])
                             continue;
                         if (close(fds[index]))  //  0 for success, -1 for error
                             fprintf(stderr, "Something is wrong with close! %s\n", strerror(errno));
+                        else
+                            fds[index] = -1;
                     }
                     
                     
