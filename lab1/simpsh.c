@@ -6,6 +6,7 @@
 #include <sys/wait.h>   //  waitpid
 #include <string.h> //  str stuff
 #include <errno.h>  //  errno
+#include <signal.h>
 #define _GNU_SOURCE
 
 int check_option(char* opt_name)
@@ -309,35 +310,12 @@ int main(int argc, char *argv[])
                             fprintf(stderr, "Something is wrong with close! %s\n", strerror(errno));
                     }
                     
-                    
-                    
-                    //  Dear Anthony: this is too tedious, let's just close everything after dup2, lol
-                    
-//                    //  Note: child need to close unused end of pipe
-//                    if (pipeFds[index_i] == 'r') {
-//                        //printf("Child about to close unused write %d, the fd value is %d\n", index_i+1, fds[index_i+1]);
-//                        if (fds[index_i+1] != -1) {
-//                            printf("Child %d about to close unused write %d, the fd value is %d\n", cpid_index, index_i+1, fds[index_i+1]);
-//                            close(fds[index_i+1]);
-//                            fds[index_i+1] = -1;
-//                        }
-//                            //close(fds[index_i+1]);  //  close unused write end of pipe
-//                    }
-//                    if (pipeFds[index_o] == 'w') {
-//                        //printf("Child about to close unused read %d, the fd value is %d\n", index_o-1, fds[index_o-1]);
-//                        if (fds[index_o-1] != -1) {
-//                            printf("Child %d about to close unused read %d, the fd value is %d\n", cpid_index, index_o-1, fds[index_o-1]);
-//                            close(fds[index_o-1]);
-//                            fds[index_o-1] = -1;
-//                        }
-//                            //close(fds[index_o-1]);  //  close unused read end of pipe
-//                    }
-                    
                     if (execvp(argv[cmd_index+3], &argv[cmd_index+3]) == -1) {  //  cmd_index+3 is where the arg starts
                         fprintf(stderr, "Execvp error %s\n", strerror(errno));
                         exit(1);
                     }
-                } else {
+                } 
+                else {
                     //  parent
                     //  Note: In parent, we need to close the end of the pipe that's already used by child
                     if (pipeFds[index_i] == 'r') {
@@ -367,16 +345,6 @@ int main(int argc, char *argv[])
             case VERBOSE:
                 Verbose_ON = TRUE;
                  oflag_val = 0;
-                // index = optind;
-                // while(index < argc)
-                // {
-                //     if(check_option(argv[index]))
-                //         printf("\n%s ", argv[index]);
-                //     else 
-                //         printf("%s ", argv[index]);
-                //     index++;
-                // }
-                //printf("--verbose is ON\n");
                 break;
             case CLOSE:
                 if(Verbose_ON)
@@ -410,7 +378,6 @@ int main(int argc, char *argv[])
             case CATCH:
             case IGNORE:
                 index = optind - 1;
-                sig_num = strtol(argv[index], NULL, 0);
                 if(Verbose_ON)
                 {
                     strcat(verbose_strings, argv[index-1]);
@@ -420,7 +387,11 @@ int main(int argc, char *argv[])
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
                 oflag_val = 0;
-                signal(sig_num, SIG_IGN);
+                sig_num = strtol(argv[index], NULL, 0);
+                struct sigaction sa; 
+                sa.sa_handler = SIG_IGN;
+                sigaction(sig_num, &sa, NULL);
+                //sigaction(sig_num, SIG_IGN);
                 break;
             case DEFAULT:
                 index = optind - 1;
