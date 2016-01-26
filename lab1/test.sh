@@ -107,6 +107,23 @@ should_succeed "Double piping with tr and tr should work (2-switching the orderi
 diff myTest/test1.txt myTest/test2.txt > /dev/null
 should_succeed "Double piping with tr and tr should work (3-switching the ordering of --command should still work)"
 
+#Let's test file flags
+> myTest/test1.txt
+> myTest/test2.txt
+> myTest/test3.txt
+
+echo "Don't delete me please" > myTest/test1.txt
+./simpsh --rdonly myTest/test2.txt --append --wronly myTest/test1.txt --wronly myTest/test3.txt --command 0 1 2 echo "Add me please"
+cat myTest/test1.txt | grep "Don't delete me please" > /dev/null
+should_succeed "Testing --append"
+
+./simpsh --rdonly myTest/test2.txt --creat --wronly myTest/test4.txt --wronly myTest/test3.txt --command 0 1 2 echo "I was just born"
+cat myTest/test4.txt | grep "I was just born" > /dev/null
+should_succeed "Testing --creat"
+
+./simpsh --trunc --wronly myTest/test4.txt
+cat myTest/test4.txt | grep "I was just born" > /dev/null
+should_fail "Testing --trunc"
 
 
 rm -rf myTest
