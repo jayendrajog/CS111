@@ -7,6 +7,7 @@
 #include <string.h> //  str stuff
 #include <errno.h>  //  errno
 #include <signal.h>
+#include <unistd.h> //  pause
 #define _GNU_SOURCE
 
 int check_option(char* opt_name)
@@ -487,6 +488,7 @@ int main(int argc, char *argv[])
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
                 oflag_val = 0;
+                pause();
                 break;
             case APPEND:
                 oflag_val |= O_APPEND;
