@@ -38,6 +38,11 @@ int check_option(char* opt_name)
             strcmp(opt_name, "--trunc") == 0 );
 }
 
+void catch_sighandler(int signal) {
+    fprintf(stderr, "%d caught\n", signal);
+    exit(signal);
+}
+
 int main(int argc, char *argv[])
 {
     //int digit_optind = 0;
@@ -63,6 +68,7 @@ int main(int argc, char *argv[])
     
 
     int sig_num;
+    struct sigaction sa;
 
     //int **flags = malloc(sizeof(int*) * NUM_OPTIONS);
     int *fds = malloc(sizeof(int) * argc);    //  TODO: will allocate too much memory
@@ -308,6 +314,8 @@ int main(int argc, char *argv[])
                             continue;
                         if (close(fds[index]))  //  0 for success, -1 for error
                             fprintf(stderr, "Something is wrong with close! %s\n", strerror(errno));
+                        else
+                            fds[index] = -1;
                     }
                     
                     if (execvp(argv[cmd_index+3], &argv[cmd_index+3]) == -1) {  //  cmd_index+3 is where the arg starts
@@ -376,6 +384,23 @@ int main(int argc, char *argv[])
                 oflag_val = 0;
                 break;
             case CATCH:
+                //  verbose related
+                index = optind - 1;
+                sig_num = strtol(argv[index], NULL, 0);
+                if(Verbose_ON)
+                {
+                    strcat(verbose_strings, argv[index-1]);
+                    strcat(verbose_strings, " ");
+                    strcat(verbose_strings, argv[index]);
+                    printf("%s\n", verbose_strings);
+                    memset(verbose_strings, 0, argc * 10 * sizeof(char));
+                }
+                oflag_val = 0;
+                
+                sa.sa_handler = catch_sighandler;
+                sigaction(sig_num, &sa, NULL);
+                break;
+                
             case IGNORE:
                 index = optind - 1;
                 if(Verbose_ON)
