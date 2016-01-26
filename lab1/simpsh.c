@@ -607,27 +607,9 @@ int main(int argc, char *argv[])
     while (n >= 0) {
         pid = waitpid(cpids[n], &status, 0);
         //  TODO: we don't need to print this do we??
-        if(Wait_ON)
-        { 
-            wait_string_ints[wait_string_index_ints] = status;
-            wait_string_index_ints++;
-            // printf("so far its %s\n", complete_wait_string);
-            // //makes it "0"
-            // wait_string2[0] = ('0' + status);
-            // //makes it "0 "
-            // strcat(wait_string2, " ");
-            // //makes it "0 sort"
-            // strcat(wait_string2, wait_string);
-            // //makes it "0 tr A-Z a-z\n 0 sort"
-            // strcat(complete_wait_string, wait_string2);
-
-            // strcat(complete_wait_string, "\n");
-            // memset(wait_string, 0, argc * 10 * sizeof(char));
-            // memset(wait_string2, 0, argc * 10 * sizeof(char));
-            //strcat(complete_wait_string, wait_string);
-           // printf("%s and exit status is %x", wait_string, status);
-        }
-        //printf("Child number %i (PID %ld) exited with status 0x%x\n", n, (long)pid, status);
+        wait_string_ints[wait_string_index_ints] = status;
+        wait_string_index_ints++;
+           
         --n;    //  // TODO(pts): Remove pid from the pids array.
     }
     
