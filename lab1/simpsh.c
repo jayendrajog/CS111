@@ -331,7 +331,7 @@ int main(int argc, char *argv[])
                         fprintf(stderr, "Execvp error %s\n", strerror(errno));
                         exit(1);
                     }
-                } 
+                }
                 else {
                     //  parent
                     //  Note: In parent, we need to close the end of the pipe that's already used by child
@@ -607,7 +607,7 @@ int main(int argc, char *argv[])
     while (n >= 0) {
         pid = waitpid(cpids[n], &status, 0);
         //  TODO: we don't need to print this do we??
-        wait_string_ints[wait_string_index_ints] = status;
+        wait_string_ints[wait_string_index_ints] = WEXITSTATUS(status);
         wait_string_index_ints++;
            
         --n;    //  // TODO(pts): Remove pid from the pids array.
@@ -633,7 +633,7 @@ int main(int argc, char *argv[])
                 wait_string2[n] = wait_string[wait_string_index];
             }    
             wait_string_index++;
-            printf("%d %s\n", (wait_string_ints[index] & 0xff), wait_string2);
+            //printf("%d %s\n", (wait_string_ints[index] & 0xff), wait_string2);
             memset(wait_string2, 0, argc * 100);
         }
     }
