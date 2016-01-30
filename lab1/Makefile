@@ -4,8 +4,8 @@ DIST_SOURCES = simpsh.c test.sh README
 
 default: simpsh
 
-simpsh.o: simpsh.c
-	$(CC) -c simpsh.c -o simpsh.o
+simpsh.o: lab1-$(USER)/simpsh.c
+	$(CC) -c lab1-$(USER)/simpsh.c -o simpsh.o
 
 simpsh: simpsh.o
 	$(CC) simpsh.o -o simpsh
