@@ -49,8 +49,8 @@ void catch_sighandler(int signal) {
 void print_usage(struct rusage usage_struct)
 {
     printf("user: %d, system: %d, max resident: %d, soft pf: %d, hard pf: %d, input ops: %d, output ops: %d\n",
-                        usage_struct.ru_utime,
-                        usage_struct.ru_stime,
+                        usage_struct.ru_utime.tv_sec,
+                        usage_struct.ru_stime.tv_usec,
                         usage_struct.ru_maxrss,
                         usage_struct.ru_minflt,
                         usage_struct.ru_majflt,
