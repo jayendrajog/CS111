@@ -1,0 +1,50 @@
+Bash (user is CPU time in user-mode; sys is CPU time in kernel mode)
+time cat /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 10M | grep "Anthony"
+
+real	0m4.384s
+user	0m0.217s
+sys		0m4.330s
+
+real	0m4.467s
+user	0m0.221s
+sys		0m4.414s
+
+real	0m4.415s
+user	0m0.227s
+sys		0m4.350s
+
+real	0m4.357s
+user	0m0.220s
+sys		0m4.308s
+
+real	0m4.458s
+user	0m0.227s
+sys		0m4.393s
+
+
+time cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1M | sort >/dev/null
+real	0m17.541s
+user	0m5.091s
+sys		0m14.098s
+
+real	0m17.575s
+user	0m5.049s
+sys		0m14.201s
+
+real	0m17.536s
+user	0m5.041s
+sys		0m14.153s
+
+real	0m17.609s
+user	0m5.108s
+sys		0m14.123s
+
+real	0m17.674s
+user	0m5.099s
+sys		0m14.242s
+
+./simpsh --profile --rdonly dummyRead --creat --wronly err --pipe --pipe --pipe --command 0 3 1 cat /dev/urandom --command 2 5 1 tr -dc 'a-zA-Z0-9' --command 4 7 1 head -c 10M --command 6 1 1 grep 'Anthony'
+
+./simpsh --profile --rdonly dummyRead --wronly /dev/null --wronly err --pipe --pipe --pipe --pipe --command 0 4 2 cat /dev/urandom --command 3 6 2 tr -dc 'a-zA-Z0-9' --command 5 8 2 fold -w 32 --command 7 10 2 head -n 1M --command 9 1 2 sort
+
+
