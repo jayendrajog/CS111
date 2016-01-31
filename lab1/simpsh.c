@@ -106,11 +106,12 @@ int main(int argc, char *argv[])
 
     int oflag_val = 0;
     
-    
-    int *userBeforeFork = malloc(sizeof(int) * argc);
-    int userAfterFork;
-    int *systemBeforeFork = malloc(sizeof(int) * argc);
-    int systemAfterFork;
+    int userCurrent;
+    int systemCurrent;
+    int userAfter;
+    int systemAfter;
+    int userAccumulate;
+    int systemAccumulate;
     
     
     enum OPTIONS {
@@ -343,13 +344,7 @@ int main(int argc, char *argv[])
                     break;
                 }
                 
-                getrusage(RUSAGE_SELF, &usage_struct);
-                //printf("--command %s before fork() is %d\n", argv[cmd_index+3],usage_struct.ru_utime.tv_usec);
-                userBeforeFork[cpid_index] = usage_struct.ru_utime.tv_sec * pow(10,6) + usage_struct.ru_utime.tv_usec;
-                systemBeforeFork[cpid_index] = usage_struct.ru_stime.tv_sec * pow(10,6) + usage_struct.ru_stime.tv_usec;
                 cpids[cpid_index] = fork();
-                //getrusage(RUSAGE_SELF, &usage_struct);
-                //printf("--command %s after fork() is %d\n", argv[cmd_index+3],usage_struct.ru_utime.tv_usec);
                 if (cpids[cpid_index] == 0) {
                     //  In child
                     
@@ -405,10 +400,6 @@ int main(int argc, char *argv[])
                             //close(fds[index_o]);
                         //fds[index_o] = -1;  //  set this to -1 so we won't close this again
                     }
-//                    getrusage(RUSAGE_SELF, &usage_struct);
-//                    userAfterFork = usage_struct.ru_utime.tv_sec * 1000000 + usage_struct.ru_utime.tv_usec;
-//                    systemAfterFork = usage_struct.ru_stime.tv_sec * 1000000 + usage_struct.ru_stime.tv_usec;
-//                    printf("--command %s takes %d microseconds user time and %d microseconds system time\n", argv[cmd_index+3],userAfterFork - userBeforeFork, systemAfterFork - systemBeforeFork);
                 }
                 cpid_index++;
                 oflag_val = 0;
@@ -761,12 +752,23 @@ int main(int argc, char *argv[])
     //     printf("%s\n", verbose_strings);
     
     n = cpid_index - 1;
+    getrusage(RUSAGE_CHILDREN, &usage_struct);
+    userCurrent = usage_struct.ru_utime.tv_sec * pow(10,6) + usage_struct.ru_utime.tv_usec;
+    systemCurrent = usage_struct.ru_stime.tv_sec * pow(10,6) + usage_struct.ru_stime.tv_usec;
     while (n >= 0) {
         pid = waitpid(cpids[n], &status, 0);
-        getrusage(RUSAGE_SELF, &usage_struct);
-        userAfterFork = usage_struct.ru_utime.tv_sec * pow(10,6) + usage_struct.ru_utime.tv_usec;
-        systemAfterFork = usage_struct.ru_stime.tv_sec * pow(10,6) + usage_struct.ru_stime.tv_usec;
-        printf("Child process %d takes %d microseconds user time and %d microseconds system time\n", n, (userAfterFork - userBeforeFork[n]), (systemAfterFork - systemBeforeFork[n]));
+        
+        getrusage(RUSAGE_CHILDREN, &usage_struct);
+        userAfter = usage_struct.ru_utime.tv_sec * pow(10,6) + usage_struct.ru_utime.tv_usec;
+        systemAfter = usage_struct.ru_stime.tv_sec * pow(10,6) + usage_struct.ru_stime.tv_usec;
+        userAccumulate += userAfter - userCurrent;
+        systemAccumulate += systemAfter - systemCurrent;
+        printf("Child process %d takes %d microsecodns user time and %d microseconds system time\n", n, (userAfter - userCurrent), (systemAfter - systemCurrent));
+        //  resets
+        userCurrent = userAfter;
+        //  Don't ask me why but apparently you are not supposed to reset system
+        //systemCurrent = systemAfter;
+        
         //  TODO: we don't need to print this do we??
         wait_string_ints[wait_string_index_ints] = WEXITSTATUS(status);
         wait_string_index_ints++;
@@ -777,6 +779,10 @@ int main(int argc, char *argv[])
         }
         --n;    //  // TODO(pts): Remove pid from the pids array.
     }
+    
+    //  Note: must use 1000000 instead of pow(10,6) here because pow returns double and we want integer division
+    printf("Total time:\nUser:\t%d.%ds\nSystem:\t%d.%ds\n", userAccumulate / 1000000, userAccumulate % 1000000, systemAccumulate / 1000000, systemAccumulate % 1000000);
+    
     
     //  close fds
     for (index = 0; index < fd_index; index++) {
