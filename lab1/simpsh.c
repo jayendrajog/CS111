@@ -8,6 +8,8 @@
 #include <errno.h>  //  errno
 #include <signal.h>
 #include <unistd.h> //  pause
+#include <sys/time.h>
+#include <sys/resource.h>
 #define _GNU_SOURCE
 
 int check_option(char* opt_name)
@@ -44,8 +46,17 @@ void catch_sighandler(int signal) {
     exit(signal);
 }
 
-void ignore_sighandler(int signal) {
-    //printf("ignorehandler getting called");
+void print_usage(struct rusage usage_struct)
+{
+    printf("user: %d, system: %d, max resident: %d, soft pf: %d, hard pf: %d, input ops: %d, output ops: %d\n",
+                        usage_struct.ru_utime,
+                        usage_struct.ru_stime,
+                        usage_struct.ru_maxrss,
+                        usage_struct.ru_minflt,
+                        usage_struct.ru_majflt,
+                        usage_struct.ru_inblock,
+                        usage_struct.ru_oublock);
+       
 }
 
 int main(int argc, char *argv[])
@@ -128,7 +139,7 @@ int main(int argc, char *argv[])
     enum BOOL{
         FALSE,
         TRUE
-    } Verbose_ON = FALSE, Wait_ON = FALSE;
+    } Verbose_ON = FALSE, Wait_ON = FALSE, Profile_ON = FALSE;
 
     static struct option the_options[] = {
         {"rdonly", required_argument, 0, RDONLY},
@@ -158,12 +169,16 @@ int main(int argc, char *argv[])
         {"trunc", optional_argument, 0, TRUNC},
         {0, 0, 0, 0}
     };
+
+    struct rusage usage_struct;
     
     while ((option = getopt_long(argc, argv, "", the_options, &option_index)) != -1) {
         switch (option) {
             case RDONLY:
                 //printf("--rdonly is ON\n");
                 //printf("optind is %d and file to open with --rdonly is %s\n", optind, argv[optind-1]);
+                if(oflag_val == 0)
+                    getrusage(RUSAGE_SELF, &usage_struct);
                 if(Verbose_ON)
                 {
                     index = optind - 1;
@@ -181,9 +196,16 @@ int main(int argc, char *argv[])
                 oflag_val = 0;
                 pipeFds[fd_index] = 'n';    //  not pipe
                 fd_index++; //  go to next place for save
+                if(Profile_ON)
+                {
+                    printf("rdonly, ");
+                    print_usage(usage_struct);
+                }
                 break;
             case WRONLY:
                 //printf("--wronly is ON\n");
+                 if(oflag_val == 0)
+                    getrusage(RUSAGE_SELF, &usage_struct);
                 if(Verbose_ON)
                 {
                     index = optind - 1;
@@ -200,8 +222,15 @@ int main(int argc, char *argv[])
                 oflag_val = 0;
                 pipeFds[fd_index] = 'n';    //  not pipe
                 fd_index++; //  go to next place for save
+                if(Profile_ON)
+                {
+                    printf("wronly, ");
+                    print_usage(usage_struct);
+                }
                 break;
             case RDWR:
+                if(oflag_val == 0)
+                    getrusage(RUSAGE_SELF, &usage_struct);
                 if(Verbose_ON)
                 {
                     index = optind - 1;
@@ -217,9 +246,16 @@ int main(int argc, char *argv[])
                 }
                 oflag_val = 0;
                 fd_index++; //  go to next place for save
+                if(Profile_ON)
+                {
+                    printf("rdwr, ");
+                    print_usage(usage_struct);
+                }
                 break;
             case COMMAND:
+                getrusage(RUSAGE_SELF, &usage_struct);
                 //  verbose related
+                //getrusage(RUSAGE_SELF, usage_struct);
                 index = optind - 1;
                 strcat(verbose_strings, argv[index-1]);
                 while(index < argc && !check_option(argv[index]))
@@ -360,10 +396,17 @@ int main(int argc, char *argv[])
                 oflag_val = 0;
                 break;
             case VERBOSE:
+                getrusage(RUSAGE_SELF, &usage_struct);
                 Verbose_ON = TRUE;
-                 oflag_val = 0;
+                oflag_val = 0;
+                if(Profile_ON)
+                {
+                    printf("verbose, ");
+                    print_usage(usage_struct);
+                }
                 break;
             case CLOSE:
+                 getrusage(RUSAGE_SELF, &usage_struct);
                 if(Verbose_ON)
                 {
                     index = optind - 1;
@@ -391,9 +434,15 @@ int main(int argc, char *argv[])
                     }
                 }
                 oflag_val = 0;
+                if(Profile_ON)
+                {
+                    printf("close, ");
+                    print_usage(usage_struct);
+                }
                 break;
             case CATCH:
                 //  verbose related
+                getrusage(RUSAGE_SELF, &usage_struct);
                 index = optind - 1;
                 sig_num = strtol(argv[index], NULL, 0);
                 if(Verbose_ON)
@@ -408,9 +457,15 @@ int main(int argc, char *argv[])
                 
                 sa.sa_handler = catch_sighandler;
                 sigaction(sig_num, &sa, NULL);
+                if(Profile_ON)
+                {
+                    printf("catch, ");
+                    print_usage(usage_struct);
+                }
                 break;
                 
             case IGNORE:
+                getrusage(RUSAGE_SELF, &usage_struct);
                 index = optind - 1;
                 if(Verbose_ON)
                 {
@@ -423,8 +478,14 @@ int main(int argc, char *argv[])
                 oflag_val = 0;
                 sig_num = (int) strtol(argv[index], NULL, 0);
                 signal(sig_num, SIG_IGN);
+                if(Profile_ON)
+                {
+                    printf("ignore, ");
+                    print_usage(usage_struct);
+                }
                 break;
             case DEFAULT:
+                getrusage(RUSAGE_SELF, &usage_struct);
                 index = optind - 1;
                 sig_num = strtol(argv[index], NULL, 0);
                 if(Verbose_ON)
@@ -437,8 +498,14 @@ int main(int argc, char *argv[])
                 }
                 oflag_val = 0;
                 signal(sig_num, SIG_DFL);
+                if(Profile_ON)
+                {
+                    printf("default, ");
+                    print_usage(usage_struct);
+                }
                 break;
             case PIPE: 
+                getrusage(RUSAGE_SELF, &usage_struct);
                 if(Verbose_ON)
                 {
                     index = optind - 1;
@@ -457,8 +524,14 @@ int main(int argc, char *argv[])
                     pipeFds[fd_index++] = 'w';    //  this is the write end
                 }
                 oflag_val = 0;
+                if(Profile_ON)
+                {
+                    printf("pipe, ");
+                    print_usage(usage_struct);
+                }
                 break;
             case WAIT:
+                getrusage(RUSAGE_SELF, &usage_struct);
                 if(Verbose_ON)
                 {
                     index = optind - 1;
@@ -467,8 +540,24 @@ int main(int argc, char *argv[])
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
                 Wait_ON = TRUE;
+                oflag_val = 0;
+                if(Profile_ON)
+                {
+                    printf("wait, ");
+                    print_usage(usage_struct);
+                }
                 break;
             case PROFILE:
+                if(Verbose_ON)
+                {
+                    index = optind - 1;
+                    strcat(verbose_strings, argv[index]);
+                    printf("%s\n", verbose_strings);
+                    memset(verbose_strings, 0, argc * 10 * sizeof(char));
+                }
+                oflag_val = 0;
+                Profile_ON = TRUE;
+                break;
             case ABORT:
                 if(Verbose_ON)
                 {
@@ -480,6 +569,7 @@ int main(int argc, char *argv[])
                 raise(SIGSEGV);
                 break;
             case PAUSE:
+                getrusage(RUSAGE_SELF, &usage_struct);
                 if(Verbose_ON)
                 {
                     index = optind - 1;
@@ -489,8 +579,17 @@ int main(int argc, char *argv[])
                 }
                 oflag_val = 0;
                 pause();
+                if(Profile_ON)
+                {
+                    printf("pause, ");
+                    print_usage(usage_struct);
+                }
                 break;
             case APPEND:
+                //this means that it's a new options
+                if(oflag_val == 0)
+                    getrusage(RUSAGE_SELF, &usage_struct);
+                //if not a new option, then keep timing so you dont need getrusage
                 oflag_val |= O_APPEND;
                 if(Verbose_ON)
                 {
@@ -500,6 +599,10 @@ int main(int argc, char *argv[])
                 }
                 break;
             case CLOEXEC:
+                //this means that it's a new options
+                if(oflag_val == 0)
+                    getrusage(RUSAGE_SELF, &usage_struct);
+                //if not a new option, then keep timing so you dont need getrusage
                 oflag_val |= O_CLOEXEC;
                 if(Verbose_ON)
                 {
@@ -509,6 +612,10 @@ int main(int argc, char *argv[])
                 }
                 break;
             case CREAT:
+                //this means that it's a new options
+                if(oflag_val == 0)
+                    getrusage(RUSAGE_SELF, &usage_struct);
+                //if not a new option, then keep timing so you dont need getrusage
                 oflag_val |= O_CREAT;
                 if(Verbose_ON)
                 {
@@ -518,6 +625,10 @@ int main(int argc, char *argv[])
                 }
                 break;
             case DIRECTORY:
+                //this means that it's a new options
+                if(oflag_val == 0)
+                    getrusage(RUSAGE_SELF, &usage_struct);
+                //if not a new option, then keep timing so you dont need getrusage
                 oflag_val  |= O_DIRECTORY;
                 if(Verbose_ON)
                 {
@@ -527,6 +638,10 @@ int main(int argc, char *argv[])
                 }
                 break;
             case DSYNC:
+                //this means that it's a new options
+                if(oflag_val == 0)
+                    getrusage(RUSAGE_SELF, &usage_struct);
+                //if not a new option, then keep timing so you dont need getrusage
                 oflag_val  |= O_DSYNC;
                 if(Verbose_ON)
                 {
@@ -536,6 +651,10 @@ int main(int argc, char *argv[])
                 }
                 break;
             case EXCL:
+                //this means that it's a new options
+                if(oflag_val == 0)
+                    getrusage(RUSAGE_SELF, &usage_struct);
+                //if not a new option, then keep timing so you dont need getrusage
                 oflag_val  |= O_EXCL;
                 if(Verbose_ON)
                 {
@@ -545,6 +664,10 @@ int main(int argc, char *argv[])
                 }
                 break;
             case NOFOLLOW:
+                //this means that it's a new options
+                if(oflag_val == 0)
+                    getrusage(RUSAGE_SELF, &usage_struct);
+                //if not a new option, then keep timing so you dont need getrusage
                 oflag_val  |= O_NOFOLLOW;
                 if(Verbose_ON)
                 {
@@ -554,6 +677,10 @@ int main(int argc, char *argv[])
                 }
                 break;
             case NONBLOCK:
+                //this means that it's a new options
+                if(oflag_val == 0)
+                    getrusage(RUSAGE_SELF, &usage_struct);
+                //if not a new option, then keep timing so you dont need getrusage
                 oflag_val  |= O_NONBLOCK;
                 if(Verbose_ON)
                 {
@@ -563,6 +690,10 @@ int main(int argc, char *argv[])
                 }
                 break;
             case RSYNC:
+                //this means that it's a new options
+                if(oflag_val == 0)
+                    getrusage(RUSAGE_SELF, &usage_struct);
+                //if not a new option, then keep timing so you dont need getrusage
                oflag_val |= O_RSYNC;
                 if(Verbose_ON)
                 {
@@ -572,6 +703,10 @@ int main(int argc, char *argv[])
                 }
                 break;
             case SYNC:
+                //this means that it's a new options
+                if(oflag_val == 0)
+                    getrusage(RUSAGE_SELF, &usage_struct);
+                //if not a new option, then keep timing so you dont need getrusage
                 oflag_val |= O_SYNC;
                 if(Verbose_ON)
                 {
@@ -581,6 +716,10 @@ int main(int argc, char *argv[])
                 }
                 break;
             case TRUNC:
+                //this means that it's a new options
+                if(oflag_val == 0)
+                    getrusage(RUSAGE_SELF, &usage_struct);
+                //if not a new option, then keep timing so you dont need getrusage
                 oflag_val |= O_TRUNC;
                 if(Verbose_ON)
                 {
@@ -609,7 +748,11 @@ int main(int argc, char *argv[])
         //  TODO: we don't need to print this do we??
         wait_string_ints[wait_string_index_ints] = WEXITSTATUS(status);
         wait_string_index_ints++;
-           
+        if(Profile_ON)
+        {
+            printf("command, ");
+            print_usage(usage_struct);
+        }
         --n;    //  // TODO(pts): Remove pid from the pids array.
     }
     
