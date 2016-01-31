@@ -10,6 +10,7 @@
 #include <unistd.h> //  pause
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <math.h>
 #define _GNU_SOURCE
 
 int check_option(char* opt_name)
@@ -104,6 +105,13 @@ int main(int argc, char *argv[])
     int index_i, index_o, index_e, index_c; //  input, output, error, to close
 
     int oflag_val = 0;
+    
+    
+    int *userBeforeFork = malloc(sizeof(int) * argc);
+    int userAfterFork;
+    int *systemBeforeFork = malloc(sizeof(int) * argc);
+    int systemAfterFork;
+    
     
     enum OPTIONS {
         RDONLY, //0
@@ -335,7 +343,13 @@ int main(int argc, char *argv[])
                     break;
                 }
                 
+                getrusage(RUSAGE_SELF, &usage_struct);
+                //printf("--command %s before fork() is %d\n", argv[cmd_index+3],usage_struct.ru_utime.tv_usec);
+                userBeforeFork[cpid_index] = usage_struct.ru_utime.tv_sec * pow(10,6) + usage_struct.ru_utime.tv_usec;
+                systemBeforeFork[cpid_index] = usage_struct.ru_stime.tv_sec * pow(10,6) + usage_struct.ru_stime.tv_usec;
                 cpids[cpid_index] = fork();
+                //getrusage(RUSAGE_SELF, &usage_struct);
+                //printf("--command %s after fork() is %d\n", argv[cmd_index+3],usage_struct.ru_utime.tv_usec);
                 if (cpids[cpid_index] == 0) {
                     //  In child
                     
@@ -391,6 +405,10 @@ int main(int argc, char *argv[])
                             //close(fds[index_o]);
                         //fds[index_o] = -1;  //  set this to -1 so we won't close this again
                     }
+//                    getrusage(RUSAGE_SELF, &usage_struct);
+//                    userAfterFork = usage_struct.ru_utime.tv_sec * 1000000 + usage_struct.ru_utime.tv_usec;
+//                    systemAfterFork = usage_struct.ru_stime.tv_sec * 1000000 + usage_struct.ru_stime.tv_usec;
+//                    printf("--command %s takes %d microseconds user time and %d microseconds system time\n", argv[cmd_index+3],userAfterFork - userBeforeFork, systemAfterFork - systemBeforeFork);
                 }
                 cpid_index++;
                 oflag_val = 0;
@@ -745,6 +763,10 @@ int main(int argc, char *argv[])
     n = cpid_index - 1;
     while (n >= 0) {
         pid = waitpid(cpids[n], &status, 0);
+        getrusage(RUSAGE_SELF, &usage_struct);
+        userAfterFork = usage_struct.ru_utime.tv_sec * pow(10,6) + usage_struct.ru_utime.tv_usec;
+        systemAfterFork = usage_struct.ru_stime.tv_sec * pow(10,6) + usage_struct.ru_stime.tv_usec;
+        printf("Child process %d takes %d microseconds user time and %d microseconds system time\n", n, (userAfterFork - userBeforeFork[n]), (systemAfterFork - systemBeforeFork[n]));
         //  TODO: we don't need to print this do we??
         wait_string_ints[wait_string_index_ints] = WEXITSTATUS(status);
         wait_string_index_ints++;
