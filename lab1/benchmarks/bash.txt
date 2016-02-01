@@ -43,8 +43,34 @@ real	0m17.674s
 user	0m5.099s
 sys		0m14.242s
 
+
+time cat /dev/urandom | tr -dc 'a-zA-Z0-9' | tr A-Z a-z | fold -w 32 | head -n 5M | tail -n 2M | head -n 1M | grep "abcdef"
+real	1m11.004s
+user	0m4.988s
+sys		1m10.670s
+
+real	1m10.934s
+user	0m4.934s
+sys		1m10.607s
+
+real	1m10.690s
+user	0m5.060s
+sys		1m10.344s
+
+real	1m10.859s
+user	0m5.120s
+sys		1m10.556s
+
+real	1m11.258s
+user	0m4.976s
+sys		1m10.884s
+
+
 ./simpsh --profile --rdonly dummyRead --creat --wronly err --pipe --pipe --pipe --command 0 3 1 cat /dev/urandom --command 2 5 1 tr -dc 'a-zA-Z0-9' --command 4 7 1 head -c 10M --command 6 1 1 grep 'Anthony'
 
 ./simpsh --profile --rdonly dummyRead --wronly /dev/null --wronly err --pipe --pipe --pipe --pipe --command 0 4 2 cat /dev/urandom --command 3 6 2 tr -dc 'a-zA-Z0-9' --command 5 8 2 fold -w 32 --command 7 10 2 head -n 1M --command 9 1 2 sort
+
+./simpsh --profile --rdonly dummyRead --wronly /dev/null --wronly err --pipe --pipe --pipe --pipe --pipe --pipe --pipe --command 0 4 2 cat /dev/urandom --command 3 6 2 tr -dc 'a-zA-Z0-9' --command 5 8 2 tr A-Z a-z --command 7 10 2 fold -w 32 --command 9 12 2 head -n 5M --command 11 14 2 tail -n 2M --command 13 16 2 head -n 1M --command 15 1 2 grep "abcdef"
+
 
 

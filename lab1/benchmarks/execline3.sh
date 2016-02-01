@@ -1,0 +1,2 @@
+#!/command/execlineb
+pipeline cat /dev/urandom "" pipeline tr -dc 'a-zA-Z0-9' "" pipeline tr A-Z a-z "" pipeline fold -w 32 "" pipeline head -n 5M "" pipeline tail -n 2M "" pipeline head -n 1M "" grep "abcdef"

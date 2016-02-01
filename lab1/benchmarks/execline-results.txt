@@ -1,0 +1,62 @@
+Test case 1
+real	0m4.412s
+user	0m0.013s
+sys		0m0.020s
+
+real	0m4.319s
+user	0m0.016s
+sys		0m0.016s
+
+real	0m4.373s
+user	0m0.017s
+sys		0m0.015s
+
+real	0m4.416s
+user	0m0.013s
+sys		0m0.016s
+
+real	0m4.358s
+user	0m0.013s
+sys		0m0.019s
+
+Test case 2
+real	0m17.694s
+user	0m4.187s
+sys		0m0.078s
+
+real	0m17.438s
+user	0m4.177s
+sys		0m0.086s
+
+real	0m17.513s
+user	0m4.199s
+sys		0m0.075s
+
+real	0m17.381s
+user	0m4.222s
+sys		0m0.071s
+
+real	0m17.387s
+user	0m4.177s
+sys		0m0.091s
+
+Test case 3
+real	1m9.789s
+user	0m0.035s
+sys		0m0.021s
+
+real	1m9.916s
+user	0m0.033s
+sys		0m0.023s
+
+real	1m9.945s
+user	0m0.035s
+sys		0m0.021s
+
+real	1m9.886s
+user	0m0.035s
+sys		0m0.022s
+
+real	1m9.885s
+user	0m0.034s
+sys		0m0.022s
