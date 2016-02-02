@@ -10,6 +10,7 @@
 #include <unistd.h> //  pause
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <math.h>
 #define _GNU_SOURCE
 
 int check_option(char* opt_name)
@@ -48,14 +49,14 @@ void catch_sighandler(int signal) {
 
 void print_usage(struct rusage usage_struct)
 {
-    printf("user: %d, system: %d, max resident: %d, soft pf: %d, hard pf: %d, input ops: %d, output ops: %d\n",
-                        usage_struct.ru_utime,
-                        usage_struct.ru_stime,
-                        usage_struct.ru_maxrss,
-                        usage_struct.ru_minflt,
-                        usage_struct.ru_majflt,
-                        usage_struct.ru_inblock,
-                        usage_struct.ru_oublock);
+    // printf("user: %d, system: %d, max resident: %d, soft pf: %d, hard pf: %d, input ops: %d, output ops: %d\n",
+    //                     usage_struct.ru_utime.tv_sec,
+    //                     usage_struct.ru_stime.tv_usec,
+    //                     usage_struct.ru_maxrss,
+    //                     usage_struct.ru_minflt,
+    //                     usage_struct.ru_majflt,
+    //                     usage_struct.ru_inblock,
+    //                     usage_struct.ru_oublock);
        
 }
 
@@ -104,6 +105,14 @@ int main(int argc, char *argv[])
     int index_i, index_o, index_e, index_c; //  input, output, error, to close
 
     int oflag_val = 0;
+    
+    int userCurrent;
+    int systemCurrent;
+    int userAfter;
+    int systemAfter;
+    int userAccumulate;
+    int systemAccumulate;
+    
     
     enum OPTIONS {
         RDONLY, //0
@@ -171,14 +180,13 @@ int main(int argc, char *argv[])
     };
 
     struct rusage usage_struct;
-    
+    struct rusage after;
     while ((option = getopt_long(argc, argv, "", the_options, &option_index)) != -1) {
         switch (option) {
             case RDONLY:
                 //printf("--rdonly is ON\n");
                 //printf("optind is %d and file to open with --rdonly is %s\n", optind, argv[optind-1]);
-                if(oflag_val == 0)
-                    getrusage(RUSAGE_SELF, &usage_struct);
+               
                 if(Verbose_ON)
                 {
                     index = optind - 1;
@@ -188,6 +196,9 @@ int main(int argc, char *argv[])
                     printf("%s\n", verbose_strings);
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
+                if(oflag_val == 0)
+                    getrusage(RUSAGE_SELF, &usage_struct);
+                    
                 if ((fds[fd_index] = open(argv[optind-1], O_RDONLY | oflag_val, 0644)) == -1) {
                     fprintf(stderr, "Cannot open %s.\n", argv[optind-1]);
                     return_val = 1;
@@ -198,14 +209,15 @@ int main(int argc, char *argv[])
                 fd_index++; //  go to next place for save
                 if(Profile_ON)
                 {
-                    printf("rdonly, ");
-                    print_usage(usage_struct);
+                    getrusage(RUSAGE_SELF, &after);
+                    userCurrent = usage_struct.ru_utime.tv_sec * pow(10,6) + usage_struct.ru_utime.tv_usec;
+                    systemCurrent = usage_struct.ru_stime.tv_sec * pow(10,6) + usage_struct.ru_stime.tv_usec;
+                    userAfter = after.ru_utime.tv_sec * pow(10,6) + after.ru_utime.tv_usec;
+                    systemAfter = after.ru_stime.tv_sec * pow(10,6) + after.ru_stime.tv_usec;
+                    printf("rdonly:\tUser:\t%d.%ds; System:\t%d.%ds\n", (userAfter - userCurrent) / 1000000, (userAfter - userCurrent)% 1000000, (systemAfter - systemCurrent) / 1000000, (systemAfter - systemCurrent) % 1000000);
                 }
                 break;
-            case WRONLY:
-                //printf("--wronly is ON\n");
-                 if(oflag_val == 0)
-                    getrusage(RUSAGE_SELF, &usage_struct);
+            case WRONLY:  
                 if(Verbose_ON)
                 {
                     index = optind - 1;
@@ -215,6 +227,8 @@ int main(int argc, char *argv[])
                     printf("%s\n", verbose_strings);
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
+                if(oflag_val == 0)
+                    getrusage(RUSAGE_SELF, &usage_struct);
                 if ((fds[fd_index] = open(argv[optind-1], O_WRONLY | oflag_val, 0644)) == -1) {
                     fprintf(stderr, "Cannot open %s.\n", argv[optind-1]);
                     return_val = 1;
@@ -224,13 +238,16 @@ int main(int argc, char *argv[])
                 fd_index++; //  go to next place for save
                 if(Profile_ON)
                 {
-                    printf("wronly, ");
-                    print_usage(usage_struct);
+                    getrusage(RUSAGE_SELF, &after);
+                    userCurrent = usage_struct.ru_utime.tv_sec * pow(10,6) + usage_struct.ru_utime.tv_usec;
+                    systemCurrent = usage_struct.ru_stime.tv_sec * pow(10,6) + usage_struct.ru_stime.tv_usec;
+                    userAfter = after.ru_utime.tv_sec * pow(10,6) + after.ru_utime.tv_usec;
+                    systemAfter = after.ru_stime.tv_sec * pow(10,6) + after.ru_stime.tv_usec;
+                    printf("wronly:\tUser:\t%d.%ds; System:\t%d.%ds\n", (userAfter - userCurrent) / 1000000, (userAfter - userCurrent)% 1000000, (systemAfter - systemCurrent) / 1000000, (systemAfter - systemCurrent) % 1000000);
                 }
                 break;
             case RDWR:
-                if(oflag_val == 0)
-                    getrusage(RUSAGE_SELF, &usage_struct);
+               
                 if(Verbose_ON)
                 {
                     index = optind - 1;
@@ -240,6 +257,8 @@ int main(int argc, char *argv[])
                     printf("%s\n", verbose_strings);
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
+                if(oflag_val == 0)
+                    getrusage(RUSAGE_SELF, &usage_struct);
                 if ((fds[fd_index] = open(argv[optind-1], O_RDWR | oflag_val, 0644)) == -1) {
                     fprintf(stderr, "Cannot open %s.\n", argv[optind-1]);
                     return_val = 1;
@@ -248,8 +267,12 @@ int main(int argc, char *argv[])
                 fd_index++; //  go to next place for save
                 if(Profile_ON)
                 {
-                    printf("rdwr, ");
-                    print_usage(usage_struct);
+                    getrusage(RUSAGE_SELF, &after);
+                    userCurrent = usage_struct.ru_utime.tv_sec * pow(10,6) + usage_struct.ru_utime.tv_usec;
+                    systemCurrent = usage_struct.ru_stime.tv_sec * pow(10,6) + usage_struct.ru_stime.tv_usec;
+                    userAfter = after.ru_utime.tv_sec * pow(10,6) + after.ru_utime.tv_usec;
+                    systemAfter = after.ru_stime.tv_sec * pow(10,6) + after.ru_stime.tv_usec;
+                    printf("rdwr:\tUser:\t%d.%ds; System:\t%d.%ds\n", (userAfter - userCurrent) / 1000000, (userAfter - userCurrent)% 1000000, (systemAfter - systemCurrent) / 1000000, (systemAfter - systemCurrent) % 1000000);
                 }
                 break;
             case COMMAND:
@@ -401,12 +424,16 @@ int main(int argc, char *argv[])
                 oflag_val = 0;
                 if(Profile_ON)
                 {
-                    printf("verbose, ");
-                    print_usage(usage_struct);
+                    getrusage(RUSAGE_SELF, &after);
+                    userCurrent = usage_struct.ru_utime.tv_sec * pow(10,6) + usage_struct.ru_utime.tv_usec;
+                    systemCurrent = usage_struct.ru_stime.tv_sec * pow(10,6) + usage_struct.ru_stime.tv_usec;
+                    userAfter = after.ru_utime.tv_sec * pow(10,6) + after.ru_utime.tv_usec;
+                    systemAfter = after.ru_stime.tv_sec * pow(10,6) + after.ru_stime.tv_usec;
+                    printf("verbose:\tUser:\t%d.%ds; System:\t%d.%ds\n", (userAfter - userCurrent) / 1000000, (userAfter - userCurrent)% 1000000, (systemAfter - systemCurrent) / 1000000, (systemAfter - systemCurrent) % 1000000);
                 }
                 break;
             case CLOSE:
-                 getrusage(RUSAGE_SELF, &usage_struct);
+                
                 if(Verbose_ON)
                 {
                     index = optind - 1;
@@ -416,6 +443,7 @@ int main(int argc, char *argv[])
                     printf("%s\n", verbose_strings);
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
+                getrusage(RUSAGE_SELF, &usage_struct);
                 if (argv[optind-1][0] == '-')
                     fprintf(stderr, "Missing operand for --close\n");
                 else {
@@ -436,8 +464,12 @@ int main(int argc, char *argv[])
                 oflag_val = 0;
                 if(Profile_ON)
                 {
-                    printf("close, ");
-                    print_usage(usage_struct);
+                    getrusage(RUSAGE_SELF, &after);
+                    userCurrent = usage_struct.ru_utime.tv_sec * pow(10,6) + usage_struct.ru_utime.tv_usec;
+                    systemCurrent = usage_struct.ru_stime.tv_sec * pow(10,6) + usage_struct.ru_stime.tv_usec;
+                    userAfter = after.ru_utime.tv_sec * pow(10,6) + after.ru_utime.tv_usec;
+                    systemAfter = after.ru_stime.tv_sec * pow(10,6) + after.ru_stime.tv_usec;
+                    printf("close:\tUser:\t%d.%ds; System:\t%d.%ds\n", (userAfter - userCurrent) / 1000000, (userAfter - userCurrent)% 1000000, (systemAfter - systemCurrent) / 1000000, (systemAfter - systemCurrent) % 1000000);
                 }
                 break;
             case CATCH:
@@ -459,9 +491,13 @@ int main(int argc, char *argv[])
                 sigaction(sig_num, &sa, NULL);
                 if(Profile_ON)
                 {
-                    printf("catch, ");
-                    print_usage(usage_struct);
-                }
+                    getrusage(RUSAGE_SELF, &after);
+                    userCurrent = usage_struct.ru_utime.tv_sec * pow(10,6) + usage_struct.ru_utime.tv_usec;
+                    systemCurrent = usage_struct.ru_stime.tv_sec * pow(10,6) + usage_struct.ru_stime.tv_usec;
+                    userAfter = after.ru_utime.tv_sec * pow(10,6) + after.ru_utime.tv_usec;
+                    systemAfter = after.ru_stime.tv_sec * pow(10,6) + after.ru_stime.tv_usec;
+                    printf("catch:\tUser:\t%d.%ds; System:\t%d.%ds\n", (userAfter - userCurrent) / 1000000, (userAfter - userCurrent)% 1000000, (systemAfter - systemCurrent) / 1000000, (systemAfter - systemCurrent) % 1000000);
+                }               
                 break;
                 
             case IGNORE:
@@ -480,12 +516,16 @@ int main(int argc, char *argv[])
                 signal(sig_num, SIG_IGN);
                 if(Profile_ON)
                 {
-                    printf("ignore, ");
-                    print_usage(usage_struct);
+                    getrusage(RUSAGE_SELF, &after);
+                    userCurrent = usage_struct.ru_utime.tv_sec * pow(10,6) + usage_struct.ru_utime.tv_usec;
+                    systemCurrent = usage_struct.ru_stime.tv_sec * pow(10,6) + usage_struct.ru_stime.tv_usec;
+                    userAfter = after.ru_utime.tv_sec * pow(10,6) + after.ru_utime.tv_usec;
+                    systemAfter = after.ru_stime.tv_sec * pow(10,6) + after.ru_stime.tv_usec;
+                    printf("ignore:\tUser:\t%d.%ds; System:\t%d.%ds\n", (userAfter - userCurrent) / 1000000, (userAfter - userCurrent)% 1000000, (systemAfter - systemCurrent) / 1000000, (systemAfter - systemCurrent) % 1000000);
                 }
                 break;
             case DEFAULT:
-                getrusage(RUSAGE_SELF, &usage_struct);
+                
                 index = optind - 1;
                 sig_num = strtol(argv[index], NULL, 0);
                 if(Verbose_ON)
@@ -497,15 +537,19 @@ int main(int argc, char *argv[])
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
                 oflag_val = 0;
+                getrusage(RUSAGE_SELF, &usage_struct);
                 signal(sig_num, SIG_DFL);
                 if(Profile_ON)
                 {
-                    printf("default, ");
-                    print_usage(usage_struct);
+                    getrusage(RUSAGE_SELF, &after);
+                    userCurrent = usage_struct.ru_utime.tv_sec * pow(10,6) + usage_struct.ru_utime.tv_usec;
+                    systemCurrent = usage_struct.ru_stime.tv_sec * pow(10,6) + usage_struct.ru_stime.tv_usec;
+                    userAfter = after.ru_utime.tv_sec * pow(10,6) + after.ru_utime.tv_usec;
+                    systemAfter = after.ru_stime.tv_sec * pow(10,6) + after.ru_stime.tv_usec;
+                    printf("default:\tUser:\t%d.%ds; System:\t%d.%ds\n", (userAfter - userCurrent) / 1000000, (userAfter - userCurrent)% 1000000, (systemAfter - systemCurrent) / 1000000, (systemAfter - systemCurrent) % 1000000);
                 }
                 break;
             case PIPE: 
-                getrusage(RUSAGE_SELF, &usage_struct);
                 if(Verbose_ON)
                 {
                     index = optind - 1;
@@ -513,6 +557,7 @@ int main(int argc, char *argv[])
                     printf("%s\n", verbose_strings);
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
+                getrusage(RUSAGE_SELF, &usage_struct);
                 if (pipe(pipefd) == -1) {
                     fprintf(stderr, "Failed to open pipe\n");
                     return_val = 1;
@@ -526,8 +571,12 @@ int main(int argc, char *argv[])
                 oflag_val = 0;
                 if(Profile_ON)
                 {
-                    printf("pipe, ");
-                    print_usage(usage_struct);
+                    getrusage(RUSAGE_SELF, &after);
+                    userCurrent = usage_struct.ru_utime.tv_sec * pow(10,6) + usage_struct.ru_utime.tv_usec;
+                    systemCurrent = usage_struct.ru_stime.tv_sec * pow(10,6) + usage_struct.ru_stime.tv_usec;
+                    userAfter = after.ru_utime.tv_sec * pow(10,6) + after.ru_utime.tv_usec;
+                    systemAfter = after.ru_stime.tv_sec * pow(10,6) + after.ru_stime.tv_usec;
+                    printf("pipe:\tUser:\t%d.%ds; System:\t%d.%ds\n", (userAfter - userCurrent) / 1000000, (userAfter - userCurrent)% 1000000, (systemAfter - systemCurrent) / 1000000, (systemAfter - systemCurrent) % 1000000);
                 }
                 break;
             case WAIT:
@@ -543,8 +592,12 @@ int main(int argc, char *argv[])
                 oflag_val = 0;
                 if(Profile_ON)
                 {
-                    printf("wait, ");
-                    print_usage(usage_struct);
+                    getrusage(RUSAGE_SELF, &after);
+                    userCurrent = usage_struct.ru_utime.tv_sec * pow(10,6) + usage_struct.ru_utime.tv_usec;
+                    systemCurrent = usage_struct.ru_stime.tv_sec * pow(10,6) + usage_struct.ru_stime.tv_usec;
+                    userAfter = after.ru_utime.tv_sec * pow(10,6) + after.ru_utime.tv_usec;
+                    systemAfter = after.ru_stime.tv_sec * pow(10,6) + after.ru_stime.tv_usec;
+                    printf("wait:\tUser:\t%d.%ds; System:\t%d.%ds\n", (userAfter - userCurrent) / 1000000, (userAfter - userCurrent)% 1000000, (systemAfter - systemCurrent) / 1000000, (systemAfter - systemCurrent) % 1000000);
                 }
                 break;
             case PROFILE:
@@ -569,7 +622,7 @@ int main(int argc, char *argv[])
                 raise(SIGSEGV);
                 break;
             case PAUSE:
-                getrusage(RUSAGE_SELF, &usage_struct);
+                
                 if(Verbose_ON)
                 {
                     index = optind - 1;
@@ -578,11 +631,16 @@ int main(int argc, char *argv[])
                     memset(verbose_strings, 0, argc * 10 * sizeof(char));
                 }
                 oflag_val = 0;
+                getrusage(RUSAGE_SELF, &usage_struct);
                 pause();
                 if(Profile_ON)
                 {
-                    printf("pause, ");
-                    print_usage(usage_struct);
+                    getrusage(RUSAGE_SELF, &after);
+                    userCurrent = usage_struct.ru_utime.tv_sec * pow(10,6) + usage_struct.ru_utime.tv_usec;
+                    systemCurrent = usage_struct.ru_stime.tv_sec * pow(10,6) + usage_struct.ru_stime.tv_usec;
+                    userAfter = after.ru_utime.tv_sec * pow(10,6) + after.ru_utime.tv_usec;
+                    systemAfter = after.ru_stime.tv_sec * pow(10,6) + after.ru_stime.tv_usec;
+                    printf("pause:\tUser:\t%d.%ds; System:\t%d.%ds\n", (userAfter - userCurrent) / 1000000, (userAfter - userCurrent)% 1000000, (systemAfter - systemCurrent) / 1000000, (systemAfter - systemCurrent) % 1000000);
                 }
                 break;
             case APPEND:
@@ -743,18 +801,36 @@ int main(int argc, char *argv[])
     //     printf("%s\n", verbose_strings);
     
     n = cpid_index - 1;
+    getrusage(RUSAGE_CHILDREN, &usage_struct);
+    userCurrent = usage_struct.ru_utime.tv_sec * pow(10,6) + usage_struct.ru_utime.tv_usec;
+    systemCurrent = usage_struct.ru_stime.tv_sec * pow(10,6) + usage_struct.ru_stime.tv_usec;
     while (n >= 0) {
         pid = waitpid(cpids[n], &status, 0);
+        
+        if(Profile_ON)
+        {
+            getrusage(RUSAGE_CHILDREN, &usage_struct);
+            userAfter = usage_struct.ru_utime.tv_sec * pow(10,6) + usage_struct.ru_utime.tv_usec;
+            systemAfter = usage_struct.ru_stime.tv_sec * pow(10,6) +usage_struct.ru_stime.tv_usec;
+            userAccumulate += userAfter - userCurrent;
+            systemAccumulate += systemAfter - systemCurrent;
+            printf("command:\tUser:\t%d.%ds; System:\t%d.%ds\n", n, (userAfter - userCurrent)/1000000, (userAfter - userCurrent) % 1000000, (systemAfter - systemCurrent)/1000000, (systemAfter - systemCurrent)%1000000 );
+            //  resets
+            userCurrent = userAfter;
+        }
+        //  Don't ask me why but apparently you are not supposed to reset system
+        //systemCurrent = systemAfter;
+        
         //  TODO: we don't need to print this do we??
         wait_string_ints[wait_string_index_ints] = WEXITSTATUS(status);
         wait_string_index_ints++;
-        if(Profile_ON)
-        {
-            printf("command, ");
-            print_usage(usage_struct);
-        }
+       
         --n;    //  // TODO(pts): Remove pid from the pids array.
     }
+    
+    //  Note: must use 1000000 instead of pow(10,6) here because pow returns double and we want integer division
+    printf("total:\tUser:\t%d.%ds; System:\t%d.%ds\n", userAccumulate / 1000000, userAccumulate % 1000000, systemAccumulate / 1000000, systemAccumulate % 1000000);
+    
     
     //  close fds
     for (index = 0; index < fd_index; index++) {
@@ -776,7 +852,7 @@ int main(int argc, char *argv[])
                 wait_string2[n] = wait_string[wait_string_index];
             }    
             wait_string_index++;
-            //printf("%d %s\n", (wait_string_ints[index] & 0xff), wait_string2);
+            printf("%d %s\n", (wait_string_ints[index] & 0xff), wait_string2);
             memset(wait_string2, 0, argc * 100);
         }
     }
