@@ -1,6 +1,6 @@
 CC=gcc
 USER=JayendraJog
-DIST_SOURCES = simpsh.c test.sh README Makefile
+DIST_SOURCES = simpsh.c test.sh README Makefile report.pdf
 
 default: simpsh
 

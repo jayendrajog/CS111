@@ -838,7 +838,10 @@ int main(int argc, char *argv[])
     }
     
     //  Note: must use 1000000 instead of pow(10,6) here because pow returns double and we want integer division
-    printf("total:\tUser:\t%d.%ds; System:\t%d.%ds\n", userAccumulate / 1000000, userAccumulate % 1000000, systemAccumulate / 1000000, systemAccumulate % 1000000);
+    if(Profile_ON)
+    {
+        printf("total:\tUser:\t%d.%ds; System:\t%d.%ds\n", userAccumulate / 1000000, userAccumulate % 1000000, systemAccumulate / 1000000, systemAccumulate % 1000000);
+    }
     
     
     //  close fds
