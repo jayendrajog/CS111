@@ -809,12 +809,12 @@ int main(int argc, char *argv[])
         
         if(Profile_ON)
         {
-            getrusage(RUSAGE_CHILDREN, &after);
-            userAfter = after.ru_utime.tv_sec * pow(10,6) + after.ru_utime.tv_usec;
-            systemAfter = after.ru_stime.tv_sec * pow(10,6) + after.ru_stime.tv_usec;
+            getrusage(RUSAGE_CHILDREN, &usage_struct);
+            userAfter = usage_struct.ru_utime.tv_sec * pow(10,6) + usage_struct.ru_utime.tv_usec;
+            systemAfter = usage_struct.ru_stime.tv_sec * pow(10,6) +usage_struct.ru_stime.tv_usec;
             userAccumulate += userAfter - userCurrent;
             systemAccumulate += systemAfter - systemCurrent;
-            printf("command:\tUser:\t%d.%ds; System:\t%d.%ds\n", n, (userAfter - userCurrent)/100000, (userAfter - userCurrent) % 100000, (systemAfter - systemCurrent)/100000, (systemAfter - systemCurrent)%100000 );
+            printf("command:\tUser:\t%d.%ds; System:\t%d.%ds\n", n, (userAfter - userCurrent)/1000000, (userAfter - userCurrent) % 1000000, (systemAfter - systemCurrent)/1000000, (systemAfter - systemCurrent)%1000000 );
             //  resets
             userCurrent = userAfter;
         }
