@@ -276,7 +276,7 @@ int main(int argc, char *argv[])
                 }
                 break;
             case COMMAND:
-                getrusage(RUSAGE_SELF, &usage_struct);
+                
                 //  verbose related
                 //getrusage(RUSAGE_SELF, usage_struct);
                 index = optind - 1;
@@ -357,7 +357,7 @@ int main(int argc, char *argv[])
                     fprintf(stderr, "Bad file descriptor\n");
                     break;
                 }
-                
+                getrusage(RUSAGE_SELF, &usage_struct);
                 cpids[cpid_index] = fork();
                 if (cpids[cpid_index] == 0) {
                     //  In child
@@ -417,6 +417,15 @@ int main(int argc, char *argv[])
                 }
                 cpid_index++;
                 oflag_val = 0;
+                if(Profile_ON)
+                {
+                    getrusage(RUSAGE_SELF, &after);
+                    userCurrent = usage_struct.ru_utime.tv_sec * pow(10,6) + usage_struct.ru_utime.tv_usec;
+                    systemCurrent = usage_struct.ru_stime.tv_sec * pow(10,6) + usage_struct.ru_stime.tv_usec;
+                    userAfter = after.ru_utime.tv_sec * pow(10,6) + after.ru_utime.tv_usec;
+                    systemAfter = after.ru_stime.tv_sec * pow(10,6) + after.ru_stime.tv_usec;
+                    printf("command:\tUser:\t%d.%ds; System:\t%d.%ds\n", (userAfter==0 && userCurrent == 0? 0: userAfter - userCurrent)/1000000, (userAfter - userCurrent) % 1000000, (systemAfter - systemCurrent)/1000000, (systemAfter - systemCurrent)%1000000 );                  
+                }
                 break;
             case VERBOSE:
                 getrusage(RUSAGE_SELF, &usage_struct);
@@ -814,7 +823,7 @@ int main(int argc, char *argv[])
             systemAfter = usage_struct.ru_stime.tv_sec * pow(10,6) +usage_struct.ru_stime.tv_usec;
             userAccumulate += userAfter - userCurrent;
             systemAccumulate += systemAfter - systemCurrent;
-            printf("command:\tUser:\t%d.%ds; System:\t%d.%ds\n", n, (userAfter - userCurrent)/1000000, (userAfter - userCurrent) % 1000000, (systemAfter - systemCurrent)/1000000, (systemAfter - systemCurrent)%1000000 );
+            printf("process %d:\tUser:\t%d.%ds; System:\t%d.%ds\n", n, (userAfter - userCurrent)/1000000, (userAfter - userCurrent) % 1000000, (systemAfter - systemCurrent)/1000000, (systemAfter - systemCurrent)%1000000 );
             //  resets
             userCurrent = userAfter;
         }
