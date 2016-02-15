@@ -255,19 +255,29 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		
 		if (filp_writable) {
 			// attempt to write-lock		
-			if (wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && list_empty(&d->read_list) && d->write_avail))) {
-				// I am sleeping...cuz I'm an engineer and I'm tired
+			if (!wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && list_empty(&d->read_list) && d->write_avail))) {
+				// I'm ready...it's my time to shine!	
+				filp->f_flags |= F_OSPRD_LOCKED;
+				d->write_avail = 0;
+				// TODO: do I need spin lock here? My guess is no b/c I'm in the if statement
+				d->ticket_head++;
+				wake_up_all(&d->blockq);
 			}
 
-			// I'm ready...it's my time to shine!	
-	
+
 		} else {
 			// attempt to read-lock
-	
-			if (wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && d->write_avail))) {
-				// I am sleeping...cuz I'm an engineer and I'm tired
+			if (!wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && d->write_avail))) {
+				// I'm ready...it's my time to shine!
+				filp->f_flags |= F_OSPRD_LOCKED;
+				pid_t *tmp = kmalloc(sizeof(pid_t), GFP_ATOMIC);
+				// TODO: does kmalloc ever fail?
+				*tmp = current->pid;
+				list_add((struct list_head *)tmp, &d->read_list);
+				// TODO: do I need spin lock here? My guess is no b/c I'm in the if statement
+				d->ticket_head++;
+				wake_up_all(&d->blockq);
 			}	
-			// I'm ready...it's my time to shine!	
 		}	
 	
 
