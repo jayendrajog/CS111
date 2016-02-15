@@ -147,7 +147,7 @@ static void osprd_process_request(osprd_info_t *d, struct request *req)
 		memcpy((void *) dataPtr, (void *) req->buffer, (req->current_nr_sectors) * SECTOR_SIZE); 
 		// TODO: unlock
 	}
-	
+		
 	end_request(req, 1);
 }
 
