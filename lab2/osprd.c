@@ -176,7 +176,7 @@ static int osprd_close_last(struct inode *inode, struct file *filp)
 		// a lock, release the lock.  Also wake up blocked processes
 		// as appropriate.
 
-		// Your code here.
+		// Your code here.		
 
 		// This line avoids compiler warnings; you may remove it.
 		(void) filp_writable, (void) d;
@@ -297,8 +297,36 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		// Otherwise, if we can grant the lock request, return 0.
 
 		// Your code here (instead of the next two lines).
-		eprintk("Attempting to try acquire\n");
-		r = -ENOTTY;
+		//eprintk("Attempting to try acquire\n");
+		//r = -ENOTTY;
+		
+		if (filp_writable) {
+			// attempt to write-lock		
+			if (d->ticket_head == d->ticket_tail && list_empty(&d->read_list.list) && d->write_lock_holder == -1) {
+				// I'm ready...it's my time to shine!	
+				filp->f_flags |= F_OSPRD_LOCKED;
+				d->write_lock_holder = current->pid;
+				r = 0;
+				// NOTE: we don't call wake_up_all here cuz this never blocks
+			} else {
+				// TODO: check deadlock
+				r = -EBUSY;
+			}
+		} else {
+			// attempt to read-lock
+			if (d->ticket_head == d->ticket_tail && d->write_lock_holder == -1) {
+				// I'm ready...it's my time to shine!
+				filp->f_flags |= F_OSPRD_LOCKED;
+				struct my_list *tmp = kmalloc(sizeof(struct my_list), GFP_ATOMIC);
+				// TODO: does kmalloc ever fail?
+				tmp->pid = current->pid;
+				list_add_tail((struct list_head *)&tmp->list, &d->read_list.list);
+				r = 0;
+			} else {
+				// TODO: check deadlock
+				r = -EBUSY;
+			}	
+		}	
 
 	} else if (cmd == OSPRDIOCRELEASE) {
 
