@@ -17,6 +17,8 @@
 #include "spinlock.h"
 #include "osprd.h"
 
+#include <linux/list.h>	// for linked list
+
 /* The size of an OSPRD sector. */
 #define SECTOR_SIZE	512
 
@@ -64,6 +66,10 @@ typedef struct osprd_info {
 
 	/* HINT: You may want to add additional fields to help
 	         in detecting deadlock. */
+	
+	struct list_head read_list;
+	int write_avail;	// 1 if write lock is available, 0 otherwise
+
 
 	// The following elements are used internally; you don't need
 	// to understand them.
@@ -237,8 +243,21 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		// be protected by a spinlock; which ones?)
 
 		// Your code here (instead of the next two lines).
-		eprintk("Attempting to acquire\n");
-		r = -ENOTTY;
+		//eprintk("Attempting to acquire\n");
+		//r = -ENOTTY;
+
+		if (filp_writable) {
+			// attempt to write-lock		
+			if (list_empty(&d->read_list) && d->write_avail) {
+				eprintk("I can get a write-lock\n");
+			}
+		} else {
+			// attempt to read-lock
+			if (d->write_avail) {
+				eprintk("I can get a read-lock\n");
+			}
+		}	
+	
 
 	} else if (cmd == OSPRDIOCTRYACQUIRE) {
 
@@ -280,6 +299,9 @@ static void osprd_setup(osprd_info_t *d)
 	osp_spin_lock_init(&d->mutex);
 	d->ticket_head = d->ticket_tail = 0;
 	/* Add code here if you add fields to osprd_info_t. */
+	
+	INIT_LIST_HEAD(&d->read_list);
+	d->write_avail = 1;	// initialize to available
 }
 
 
