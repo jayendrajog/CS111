@@ -46,6 +46,10 @@ MODULE_AUTHOR("Skeletor");
 static int nsectors = 32;
 module_param(nsectors, int, 0);
 
+struct my_list {	// need this to use linux/list
+	pid_t pid;
+	struct list_head list;
+};
 
 /* The internal representation of our device. */
 typedef struct osprd_info {
@@ -67,7 +71,7 @@ typedef struct osprd_info {
 	/* HINT: You may want to add additional fields to help
 	         in detecting deadlock. */
 	
-	struct list_head read_list;
+	struct my_list read_list;	// hold the pids of processes with read lock
 	pid_t write_lock_holder;	// -1 for available
 
 
@@ -255,13 +259,14 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		
 		if (filp_writable) {
 			// attempt to write-lock		
-			if (!wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && list_empty(&d->read_list) && d->write_lock_holder == -1))) {
+			if (!wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && list_empty(&d->read_list.list) && d->write_lock_holder == -1))) {
 				// I'm ready...it's my time to shine!	
 				filp->f_flags |= F_OSPRD_LOCKED;
 				d->write_lock_holder = current->pid;
 				// TODO: do I need spin lock here? My guess is no b/c I'm in the if statement
 				d->ticket_head++;
-				wake_up_all(&d->blockq);
+				r = 0;
+				// NOTE: we don't call wake_up_all here cuz once the write-lock is locked, nobody can do anything until write-lock is released
 			}
 
 
@@ -270,13 +275,14 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 			if (!wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && d->write_lock_holder == -1))) {
 				// I'm ready...it's my time to shine!
 				filp->f_flags |= F_OSPRD_LOCKED;
-				pid_t *tmp = kmalloc(sizeof(pid_t), GFP_ATOMIC);
+				struct my_list *tmp = kmalloc(sizeof(struct my_list), GFP_ATOMIC);
 				// TODO: does kmalloc ever fail?
-				*tmp = current->pid;
-				list_add((struct list_head *)tmp, &d->read_list);
+				tmp->pid = current->pid;
+				list_add_tail((struct list_head *)&tmp->list, &d->read_list.list);
 				// TODO: do I need spin lock here? My guess is no b/c I'm in the if statement
 				d->ticket_head++;
 				wake_up_all(&d->blockq);
+				r = 0;
 			}	
 		}	
 	
@@ -304,7 +310,39 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		// you need, and return 0.
 
 		// Your code here (instead of the next line).
-		r = -ENOTTY;
+		//r = -ENOTTY;
+		
+		if (filp_writable) {
+			// attempt to release a write lock
+			if (current->pid == d->write_lock_holder) {
+				filp->f_flags ^= F_OSPRD_LOCKED;
+				d->write_lock_holder = -1;
+				wake_up_all(&d->blockq);
+				r = 0;
+			} else {
+				// bruh you don't have the lock!
+				r = -EINVAL;
+			}
+		} else {
+			// attempt to release a read lock
+			struct list_head *pos;
+			int pid_exist = 0;
+			list_for_each(pos, &d->read_list.list) {
+				if ((list_entry(pos, struct my_list, list))->pid == current->pid) {
+					pid_exist = 1;
+					break;
+				}
+			}
+			if (pid_exist) {
+				filp->f_flags ^= F_OSPRD_LOCKED;
+				list_del(pos);
+				kfree(list_entry(pos, struct my_list, list));
+				wake_up_all(&d->blockq);
+				r = 0;
+			} else {
+				r = -EINVAL;
+			}
+		}
 
 	} else
 		r = -ENOTTY; /* unknown command */
@@ -322,7 +360,7 @@ static void osprd_setup(osprd_info_t *d)
 	d->ticket_head = d->ticket_tail = 0;
 	/* Add code here if you add fields to osprd_info_t. */
 	
-	INIT_LIST_HEAD(&d->read_list);
+	INIT_LIST_HEAD(&d->read_list.list);
 	d->write_lock_holder = -1;	// initialize to available
 }
 
