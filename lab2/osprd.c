@@ -252,24 +252,22 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		my_ticket = d->ticket_tail;
 		d->ticket_tail++;
 		osp_spin_unlock(&d->mutex);
-
-		if (wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head))) {
-			//eprintk("So what's going on\n");
-			// I think I'm supposed to be sleeping now
-			// TODO: will I ever get waken up later tho?
-		}
 		
-		// I have the current ticket, it's my time to shine!	
 		if (filp_writable) {
 			// attempt to write-lock		
-			if (list_empty(&d->read_list) && d->write_avail) {
-				eprintk("I can get a write-lock\n");
+			if (wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && list_empty(&d->read_list) && d->write_avail))) {
+				// I am sleeping...cuz I'm an engineer and I'm tired
 			}
+
+			// I'm ready...it's my time to shine!	
+	
 		} else {
 			// attempt to read-lock
-			if (d->write_avail) {
-				eprintk("I can get a read-lock\n");
-			}
+	
+			if (wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && d->write_avail))) {
+				// I am sleeping...cuz I'm an engineer and I'm tired
+			}	
+			// I'm ready...it's my time to shine!	
 		}	
 	
 
