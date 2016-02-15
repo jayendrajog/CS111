@@ -176,10 +176,36 @@ static int osprd_close_last(struct inode *inode, struct file *filp)
 		// a lock, release the lock.  Also wake up blocked processes
 		// as appropriate.
 
-		// Your code here.		
+		// Your code here.	
 
 		// This line avoids compiler warnings; you may remove it.
 		(void) filp_writable, (void) d;
+			
+		if (filp_writable) {
+			// attempt to release a write lock
+			if (current->pid == d->write_lock_holder) {
+				filp->f_flags ^= F_OSPRD_LOCKED;
+				d->write_lock_holder = -1;
+				wake_up_all(&d->blockq);
+			}
+		} else {
+			// attempt to release one or multiple read locks own by this process
+			struct list_head *pos;
+			struct my_list *tmp;
+			int pid_exist = 0;
+			list_for_each(pos, &d->read_list.list) {
+				tmp = list_entry(pos, struct my_list, list);
+				if (tmp->pid == current->pid) {
+					pid_exist = 1;
+					list_del(pos);
+					kfree(tmp);
+				}
+			}
+			if (pid_exist) {
+				filp->f_flags ^= F_OSPRD_LOCKED;
+				wake_up_all(&d->blockq);
+			}
+		}
 
 	}
 
