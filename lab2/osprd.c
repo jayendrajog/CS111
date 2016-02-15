@@ -68,7 +68,7 @@ typedef struct osprd_info {
 	         in detecting deadlock. */
 	
 	struct list_head read_list;
-	int write_avail;	// 1 if write lock is available, 0 otherwise
+	pid_t write_lock_holder;	// -1 for available
 
 
 	// The following elements are used internally; you don't need
@@ -255,10 +255,10 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		
 		if (filp_writable) {
 			// attempt to write-lock		
-			if (!wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && list_empty(&d->read_list) && d->write_avail))) {
+			if (!wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && list_empty(&d->read_list) && d->write_lock_holder == -1))) {
 				// I'm ready...it's my time to shine!	
 				filp->f_flags |= F_OSPRD_LOCKED;
-				d->write_avail = 0;
+				d->write_lock_holder = current->pid;
 				// TODO: do I need spin lock here? My guess is no b/c I'm in the if statement
 				d->ticket_head++;
 				wake_up_all(&d->blockq);
@@ -267,7 +267,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 
 		} else {
 			// attempt to read-lock
-			if (!wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && d->write_avail))) {
+			if (!wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && d->write_lock_holder == -1))) {
 				// I'm ready...it's my time to shine!
 				filp->f_flags |= F_OSPRD_LOCKED;
 				pid_t *tmp = kmalloc(sizeof(pid_t), GFP_ATOMIC);
@@ -323,7 +323,7 @@ static void osprd_setup(osprd_info_t *d)
 	/* Add code here if you add fields to osprd_info_t. */
 	
 	INIT_LIST_HEAD(&d->read_list);
-	d->write_avail = 1;	// initialize to available
+	d->write_lock_holder = -1;	// initialize to available
 }
 
 
