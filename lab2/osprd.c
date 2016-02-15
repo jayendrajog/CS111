@@ -245,7 +245,21 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		// Your code here (instead of the next two lines).
 		//eprintk("Attempting to acquire\n");
 		//r = -ENOTTY;
+		
+		// first setup this process's ticket
+		int my_ticket;
+		osp_spin_lock(&d->mutex);
+		my_ticket = d->ticket_tail;
+		d->ticket_tail++;
+		osp_spin_unlock(&d->mutex);
 
+		if (wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head))) {
+			//eprintk("So what's going on\n");
+			// I think I'm supposed to be sleeping now
+			// TODO: will I ever get waken up later tho?
+		}
+		
+		// I have the current ticket, it's my time to shine!	
 		if (filp_writable) {
 			// attempt to write-lock		
 			if (list_empty(&d->read_list) && d->write_avail) {
