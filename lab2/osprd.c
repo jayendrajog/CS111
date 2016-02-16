@@ -326,11 +326,20 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 				eprintk("Process (%i) with ticket number %i received signal\n", current->pid, my_ticket);
 				// Delete this ticket from the queue (valid_ticket_list) because we just served it (either actually served it, or because of signal)	
 				osp_spin_lock(&d->mutex);
-				pos = d->valid_ticket_list.list.next;
-				ticket_tmp = list_entry(pos, struct my_ticket_list, list);
-				eprintk("In process (%i) with ticket number %i...about to delete ticket number %i\n", current->pid, my_ticket, ticket_tmp->ticket_number);
-				list_del(pos);
-				kfree(ticket_tmp);
+				//pos = d->valid_ticket_list.list.next;
+				list_for_each_safe(pos, q, &d->valid_ticket_list.list) {
+					ticket_tmp = list_entry(pos, struct my_ticket_list, list);
+					if (ticket_tmp->ticket_number == my_ticket) {	
+						eprintk("In process (%i) with ticket number %i...about to delete ticket number %i\n", current->pid, my_ticket, ticket_tmp->ticket_number);
+						list_del(pos);
+						kfree(ticket_tmp);
+						break;
+					}
+				}
+				//ticket_tmp = list_entry(pos, struct my_ticket_list, list);
+				//eprintk("In process (%i) with ticket number %i...about to delete ticket number %i\n", current->pid, my_ticket, ticket_tmp->ticket_number);
+				//list_del(pos);
+				//kfree(ticket_tmp);
 				osp_spin_unlock(&d->mutex);
 				
 				// Set ticket_head to the next one in queue
@@ -367,11 +376,20 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 				eprintk("Process (%i) with ticket number %i is killed\n", current->pid, my_ticket);
 				// Delete this ticket from the queue (valid_ticket_list) because we just served it (either actually served it, or because of signal)	
 				osp_spin_lock(&d->mutex);
-				pos = d->valid_ticket_list.list.next;
-				ticket_tmp = list_entry(pos, struct my_ticket_list, list);
-				eprintk("In process (%i) with ticket number %i...about to delete ticket number %i\n", current->pid, my_ticket, ticket_tmp->ticket_number);
-				list_del(pos);
-				kfree(ticket_tmp);
+				//pos = d->valid_ticket_list.list.next;
+				//ticket_tmp = list_entry(pos, struct my_ticket_list, list);
+				//eprintk("In process (%i) with ticket number %i...about to delete ticket number %i\n", current->pid, my_ticket, ticket_tmp->ticket_number);
+				//list_del(pos);
+				//kfree(ticket_tmp);
+				list_for_each_safe(pos, q, &d->valid_ticket_list.list) {
+					ticket_tmp = list_entry(pos, struct my_ticket_list, list);
+					if (ticket_tmp->ticket_number == my_ticket) {	
+						eprintk("In process (%i) with ticket number %i...about to delete ticket number %i\n", current->pid, my_ticket, ticket_tmp->ticket_number);
+						list_del(pos);
+						kfree(ticket_tmp);
+						break;
+					}
+				}
 				osp_spin_unlock(&d->mutex);
 				
 				// Set ticket_head to the next one in queue
