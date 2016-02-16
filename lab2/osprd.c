@@ -300,6 +300,13 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		list_add_tail(&ticket_tmp->list, &d->valid_ticket_list.list);
 		osp_spin_unlock(&d->mutex);		
 		
+		eprintk("I have ticket number %i\n", my_ticket);	
+		list_for_each(pos, &d->valid_ticket_list.list) {
+			ticket_tmp = list_entry(pos, struct my_ticket_list, list);
+			eprint("Ticket number is %i\n", ticket_tmp->ticket_number);
+		}
+		
+		
 		if (filp_writable) {
 			// attempt to write-lock		
 			if (!wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && list_empty(&d->read_list.list) && d->write_lock_holder == -1))) {
@@ -307,13 +314,19 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 				filp->f_flags |= F_OSPRD_LOCKED;
 			
 				// Delete this ticket from the queue (valid_ticket_list) because we just served it
+				d->write_lock_holder = current->pid;
+				d->ticket_head++;
+				/*
 				osp_spin_lock(&d->mutex);
 				d->write_lock_holder = current->pid;
 				pos = &d->valid_ticket_list.list;
-				osp_spin_unlock(&d->mutex);
+				//osp_spin_unlock(&d->mutex);
 				ticket_tmp = list_entry(pos, struct my_ticket_list, list);
+				eprintk("pos is %x\n", pos);
+				eprintk("ticket_tmp is %x\n", ticket_tmp);
 				list_del(pos);
 				kfree(ticket_tmp);
+				osp_spin_unlock(&d->mutex);
 				
 				// Set ticket_head to the next one in queue
 				osp_spin_lock(&d->mutex);
@@ -325,6 +338,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 					d->ticket_head = ticket_tmp->ticket_number;
 				}
 				osp_spin_unlock(&d->mutex);
+				*/
 				//osp_spin_lock(&d->mutex);
 				//ticket_tmp = list_entry(&d->valid_ticket_list.list, struct my_ticket_list, list);
 				//if (!ticket_tmp)
