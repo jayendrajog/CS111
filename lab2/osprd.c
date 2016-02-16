@@ -190,10 +190,10 @@ static int osprd_close_last(struct inode *inode, struct file *filp)
 			}
 		} else {
 			// attempt to release one or multiple read locks own by this process
-			struct list_head *pos;
+			struct list_head *pos, *q;
 			struct my_list *tmp;
 			int pid_exist = 0;
-			list_for_each(pos, &d->read_list.list) {
+			list_for_each_safe(pos, q, &d->read_list.list) {
 				tmp = list_entry(pos, struct my_list, list);
 				if (tmp->pid == current->pid) {
 					pid_exist = 1;
@@ -379,9 +379,9 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 			}
 		} else {
 			// attempt to release a read lock
-			struct list_head *pos;
+			struct list_head *pos, *q;
 			int pid_exist = 0;
-			list_for_each(pos, &d->read_list.list) {
+			list_for_each_safe(pos, q, &d->read_list.list) {
 				if ((list_entry(pos, struct my_list, list))->pid == current->pid) {
 					pid_exist = 1;
 					break;
