@@ -171,13 +171,22 @@ close FOO;
 	[
 	'(echo foo | ./osprdaccess -w -l /dev/osprda /dev/osprda)',
 	"ioctl OSPRDIOCACQUIRE: Resource deadlock avoided"
-	]
-	
+	],
+
 	#19
-#	[
-#	'(echo foo | ./osprdaccess -w -l ./osprdaccess -w -l ./osprdaccess -r -l',
-#	"ioctl OSPRDIOACQUIRE: Resource deadlock avoided"
-#	]
+	[
+	'(echo foo | ./osprdaccess -w -l)  &' . 
+	'(./osprdaccess -r -l)',
+	"ioctl OSPRDIOCACQUIRE: Resource deadlock avoided"
+	],
+	
+	#20
+	[
+	'(echo foo | ./osprdaccess -w -l)  &' .
+	'( ./osprdaccess -w -l) &' .
+	'( ./osprdaccess -r -l)',
+	"ioctl OSPRDIOACQUIRE: Resource deadlock avoided"
+	]
     );
 
 my($ntest) = 0;
