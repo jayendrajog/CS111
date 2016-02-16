@@ -245,6 +245,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 	struct my_list *tmp = NULL;
 	struct list_head *pos = NULL, *q = NULL;
 	int wait_event_sig;
+	pid_t pid_tmp;
 
 	if (cmd == OSPRDIOCACQUIRE) {
 
@@ -303,6 +304,16 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		//eprintk("Process has ticket number %i\n", my_ticket);	
 		if (filp_writable) {
 			// attempt to write-lock
+			
+			// first check deadlock
+			osp_spin_lock(&d->mutex);
+			pid_tmp = d->write_lock_holder;
+			osp_spin_unlock(&d->mutex);
+			if (pid_tmp == current->pid) {
+				// bruh that's very greedy/selfish isn't it
+				return -EDEADLK;
+			}
+
 			wait_event_sig = wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && list_empty(&d->read_list.list) && d->write_lock_holder == -1));
 			if (wait_event_sig == 0 || wait_event_sig == -ERESTARTSYS) {
 				if (wait_event_sig == 0) {
