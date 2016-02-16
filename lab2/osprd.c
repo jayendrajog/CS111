@@ -16,7 +16,7 @@
 
 #include "spinlock.h"
 #include "osprd.h"
-	
+
 #include <linux/list.h>	// for linked list
 
 /* The size of an OSPRD sector. */
@@ -143,15 +143,9 @@ static void osprd_process_request(osprd_info_t *d, struct request *req)
         uint8_t * dataPtr = d->data + (req->sector) * SECTOR_SIZE;
 	
         if (reqType == READ) {
-		// TODO: lock
-		//ioctl(devfd, OSPRDIOCACQUIRE, NULL);
 		memcpy((void *) req->buffer, (void *) dataPtr, (req->current_nr_sectors) * SECTOR_SIZE);
-		//ioctl(devfd, OSPRDIOCRELEASE, NULL);	
-		// TODO: unlock
 	} else if (reqType == WRITE) {
-		// TODO: lock
 		memcpy((void *) dataPtr, (void *) req->buffer, (req->current_nr_sectors) * SECTOR_SIZE); 
-		// TODO: unlock
 	}
 		
 	end_request(req, 1);
@@ -189,16 +183,19 @@ static int osprd_close_last(struct inode *inode, struct file *filp)
 			
 		if (filp_writable) {
 			// attempt to release a write lock
+			osp_spin_lock(&d->mutex);
 			if (current->pid == d->write_lock_holder) {
 				filp->f_flags ^= F_OSPRD_LOCKED;
 				d->write_lock_holder = -1;
 				wake_up_all(&d->blockq);
 			}
+			osp_spin_unlock(&d->mutex);
 		} else {
 			// attempt to release one or multiple read locks own by this process
 			struct list_head *pos, *q;
 			struct my_list *tmp;
 			int pid_exist = 0;
+			osp_spin_lock(&d->mutex);
 			list_for_each_safe(pos, q, &d->read_list.list) {
 				tmp = list_entry(pos, struct my_list, list);
 				if (tmp->pid == current->pid) {
@@ -207,9 +204,12 @@ static int osprd_close_last(struct inode *inode, struct file *filp)
 					kfree(tmp);
 				}
 			}
+			osp_spin_unlock(&d->mutex);
 			if (pid_exist) {
+				osp_spin_lock(&d->mutex);
 				filp->f_flags ^= F_OSPRD_LOCKED;
 				wake_up_all(&d->blockq);
+				osp_spin_unlock(&d->mutex);
 			}
 		}
 
@@ -300,7 +300,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		osp_spin_lock(&d->mutex);
 		list_add_tail(&ticket_tmp->list, &d->valid_ticket_list.list);
 		osp_spin_unlock(&d->mutex);		
-		
+		//eprintk("Process has ticket number %i\n", my_ticket);	
 		if (filp_writable) {
 			// attempt to write-lock
 			wait_event_sig = wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && list_empty(&d->read_list.list) && d->write_lock_holder == -1));
@@ -313,13 +313,17 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 					osp_spin_unlock(&d->mutex);
 					r = 0;
 				}
-
+						
 				// Delete this ticket from the queue (valid_ticket_list) because we just served it (either actually served it, or because of signal)	
 				osp_spin_lock(&d->mutex);
-				pos = d->valid_ticket_list.list.next;
-				ticket_tmp = list_entry(pos, struct my_ticket_list, list);
-				list_del(pos);
-				kfree(ticket_tmp);
+				list_for_each_safe(pos, q, &d->valid_ticket_list.list) {
+					ticket_tmp = list_entry(pos, struct my_ticket_list, list);
+					if (ticket_tmp->ticket_number == my_ticket) {	
+						list_del(pos);
+						kfree(ticket_tmp);
+						break;
+					}
+				}		
 				osp_spin_unlock(&d->mutex);
 				
 				// Set ticket_head to the next one in queue
@@ -331,8 +335,8 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 					d->ticket_head = ticket_tmp->ticket_number;
 				}
 				osp_spin_unlock(&d->mutex);
-
-				// NOTE: we don't call wake_up_all here cuz once the write-lock is locked, nobody can do anything until write-lock is released
+				wake_up_all(&d->blockq);
+				// NOTE: still need to call wake_up_all in case we reach here because of signal (I think)
 			}
 		} else {
 			// attempt to read-lock
@@ -349,13 +353,17 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 					osp_spin_unlock(&d->mutex);
 					r = 0;
 				}
-			
+	
 				// Delete this ticket from the queue (valid_ticket_list) because we just served it (either actually served it, or because of signal)	
 				osp_spin_lock(&d->mutex);
-				pos = d->valid_ticket_list.list.next;
-				ticket_tmp = list_entry(pos, struct my_ticket_list, list);
-				list_del(pos);
-				kfree(ticket_tmp);
+				list_for_each_safe(pos, q, &d->valid_ticket_list.list) {
+					ticket_tmp = list_entry(pos, struct my_ticket_list, list);
+					if (ticket_tmp->ticket_number == my_ticket) {		
+						list_del(pos);
+						kfree(ticket_tmp);
+						break;
+					}
+				}
 				osp_spin_unlock(&d->mutex);
 				
 				// Set ticket_head to the next one in queue
@@ -384,7 +392,8 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		//r = -ENOTTY;
 		
 		if (filp_writable) {
-			// attempt to write-lock		
+			// attempt to write-lock
+			osp_spin_lock(&d->mutex);		
 			if (d->ticket_head == d->ticket_tail && list_empty(&d->read_list.list) && d->write_lock_holder == -1) {
 				// I'm ready...it's my time to shine!	
 				filp->f_flags |= F_OSPRD_LOCKED;
@@ -395,8 +404,10 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 				// TODO: check deadlock
 				r = -EBUSY;
 			}
+			osp_spin_unlock(&d->mutex);
 		} else {
 			// attempt to read-lock
+			osp_spin_lock(&d->mutex);
 			if (d->ticket_head == d->ticket_tail && d->write_lock_holder == -1) {
 				// I'm ready...it's my time to shine!
 				filp->f_flags |= F_OSPRD_LOCKED;
@@ -408,7 +419,8 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 			} else {
 				// TODO: check deadlock
 				r = -EBUSY;
-			}	
+			}
+			osp_spin_unlock(&d->mutex);
 		}	
 
 	} else if (cmd == OSPRDIOCRELEASE) {
@@ -425,6 +437,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		
 		if (filp_writable) {
 			// attempt to release a write lock
+			osp_spin_lock(&d->mutex);
 			if (current->pid == d->write_lock_holder) {
 				filp->f_flags ^= F_OSPRD_LOCKED;
 				d->write_lock_holder = -1;
@@ -434,20 +447,25 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 				// bruh you don't have the lock!
 				r = -EINVAL;
 			}
+			osp_spin_unlock(&d->mutex);
 		} else {
 			// attempt to release a read lock
 			int pid_exist = 0;
+			osp_spin_lock(&d->mutex);
 			list_for_each_safe(pos, q, &d->read_list.list) {
 				if ((list_entry(pos, struct my_list, list))->pid == current->pid) {
 					pid_exist = 1;
 					break;
 				}
 			}
+			osp_spin_unlock(&d->mutex);
 			if (pid_exist) {
+				osp_spin_lock(&d->mutex);
 				filp->f_flags ^= F_OSPRD_LOCKED;
 				list_del(pos);
 				kfree(list_entry(pos, struct my_list, list));
 				wake_up_all(&d->blockq);
+				osp_spin_unlock(&d->mutex);
 				r = 0;
 			} else {
 				r = -EINVAL;
