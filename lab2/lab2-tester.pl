@@ -166,6 +166,12 @@ close FOO;
       ') 2>/dev/null',
       "aX"
     ],
+
+	#18
+	[
+	'(echo foo | ./osprdaccess -w -l /dev/osprda /dev/osprda)',
+	"ioctl OSPRDIOACQUIRE: deadlock avoided"
+	]
     );
 
 my($ntest) = 0;
