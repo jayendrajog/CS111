@@ -244,6 +244,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 	struct my_ticket_list *ticket_tmp = NULL;
 	struct my_list *tmp = NULL;
 	struct list_head *pos = NULL, *q = NULL;
+	int wait_event_sig;
 
 	if (cmd == OSPRDIOCACQUIRE) {
 
@@ -295,35 +296,32 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		
 		ticket_tmp = kmalloc(sizeof(struct my_ticket_list), GFP_ATOMIC);
 		ticket_tmp->ticket_number = my_ticket;
-
+		
 		osp_spin_lock(&d->mutex);
 		list_add_tail(&ticket_tmp->list, &d->valid_ticket_list.list);
 		osp_spin_unlock(&d->mutex);		
 		
-		eprintk("I have ticket number %i\n", my_ticket);	
-		list_for_each(pos, &d->valid_ticket_list.list) {
-			ticket_tmp = list_entry(pos, struct my_ticket_list, list);
-			eprint("Ticket number is %i\n", ticket_tmp->ticket_number);
-		}
-		
+		eprintk("Added ticket number %i\n", my_ticket);	
 		
 		if (filp_writable) {
-			// attempt to write-lock		
-			if (!wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && list_empty(&d->read_list.list) && d->write_lock_holder == -1))) {
-				// I'm ready...it's my time to shine!	
-				filp->f_flags |= F_OSPRD_LOCKED;
-			
-				// Delete this ticket from the queue (valid_ticket_list) because we just served it
-				d->write_lock_holder = current->pid;
-				d->ticket_head++;
-				/*
+			// attempt to write-lock
+			wait_event_sig = wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && list_empty(&d->read_list.list) && d->write_lock_holder == -1));
+			if (wait_event_sig == 0 || wait_event_sig == -ERESTARTSYS) {
+				if (wait_event_sig == 0) {
+					// I'm ready...it's my time to shine!	
+					filp->f_flags |= F_OSPRD_LOCKED;
+					osp_spin_lock(&d->mutex);
+					d->write_lock_holder = current->pid;
+					osp_spin_unlock(&d->mutex);
+					r = 0;
+				}
+
+				// Delete this ticket from the queue (valid_ticket_list) because we just served it (either actually served it, or because of signal)	
 				osp_spin_lock(&d->mutex);
-				d->write_lock_holder = current->pid;
-				pos = &d->valid_ticket_list.list;
-				//osp_spin_unlock(&d->mutex);
+				pos = d->valid_ticket_list.list.next;
 				ticket_tmp = list_entry(pos, struct my_ticket_list, list);
-				eprintk("pos is %x\n", pos);
-				eprintk("ticket_tmp is %x\n", ticket_tmp);
+				eprintk("About to delete ticket number %i\n", ticket_tmp->ticket_number);
+
 				list_del(pos);
 				kfree(ticket_tmp);
 				osp_spin_unlock(&d->mutex);
@@ -331,59 +329,57 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 				// Set ticket_head to the next one in queue
 				osp_spin_lock(&d->mutex);
 				if (list_empty_careful(&d->valid_ticket_list.list)) {
+					eprintk("Nothing left in linked list\n");
+					eprintk("Empty so about to set ticket_head to %i\n", d->ticket_tail);
 					d->ticket_head = d->ticket_tail;
 				} else {
-					ticket_tmp = list_entry(&d->valid_ticket_list.list, struct my_ticket_list, list);
-				
+					ticket_tmp = list_entry(d->valid_ticket_list.list.next, struct my_ticket_list, list);
+					eprintk("About to set ticket_head to %i\n", ticket_tmp->ticket_number);
 					d->ticket_head = ticket_tmp->ticket_number;
 				}
 				osp_spin_unlock(&d->mutex);
-				*/
-				//osp_spin_lock(&d->mutex);
-				//ticket_tmp = list_entry(&d->valid_ticket_list.list, struct my_ticket_list, list);
-				//if (!ticket_tmp)
-				//	d->ticket_head = d->ticket_tail;
-				//else
-				//	d->ticket_head = ticket_tmp->ticket_number;
-				//osp_spin_unlock(&d->mutex);
 
-				r = 0;
 				// NOTE: we don't call wake_up_all here cuz once the write-lock is locked, nobody can do anything until write-lock is released
 			}
-
-
 		} else {
 			// attempt to read-lock
-			if (!wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && d->write_lock_holder == -1))) {
-				// I'm ready...it's my time to shine!
-				filp->f_flags |= F_OSPRD_LOCKED;
-				tmp = kmalloc(sizeof(struct my_list), GFP_ATOMIC);
-				// TODO: does kmalloc ever fail?
-				tmp->pid = current->pid;
-				list_add_tail((struct list_head *)&tmp->list, &d->read_list.list);
-				// TODO: do I need spin lock here? My guess is no b/c I'm in the if statement
-				
-				
+			wait_event_sig = wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && d->write_lock_holder == -1));
+			if (wait_event_sig == 0 || wait_event_sig == -ERESTARTSYS) {
+				if (wait_event_sig == 0) {
+					// I'm ready...it's my time to shine!
+					filp->f_flags |= F_OSPRD_LOCKED;
+					tmp = kmalloc(sizeof(struct my_list), GFP_ATOMIC);
+					// TODO: does kmalloc ever fail?
+					tmp->pid = current->pid;
+					osp_spin_lock(&d->mutex);
+					list_add_tail((struct list_head *)&tmp->list, &d->read_list.list);
+					osp_spin_unlock(&d->mutex);
+					r = 0;
+				}
+			
+				// Delete this ticket from the queue (valid_ticket_list) because we just served it (either actually served it, or because of signal)	
 				osp_spin_lock(&d->mutex);
-				pos = &d->valid_ticket_list.list;
-				osp_spin_unlock(&d->mutex);
+				pos = d->valid_ticket_list.list.next;
 				ticket_tmp = list_entry(pos, struct my_ticket_list, list);
+				eprintk("About to delete ticket number %i\n", ticket_tmp->ticket_number);
 				list_del(pos);
 				kfree(ticket_tmp);
+				osp_spin_unlock(&d->mutex);
 				
 				// Set ticket_head to the next one in queue
 				osp_spin_lock(&d->mutex);
 				if (list_empty_careful(&d->valid_ticket_list.list)) {
+					eprintk("Nothing left in linked list\n");
+					eprintk("Empty so about to set ticket_head to %i\n", d->ticket_tail);
 					d->ticket_head = d->ticket_tail;
 				} else {
-					ticket_tmp = list_entry(&d->valid_ticket_list.list, struct my_ticket_list, list);
-				
+					ticket_tmp = list_entry(d->valid_ticket_list.list.next, struct my_ticket_list, list);
+					eprintk("About to set ticket_head to %i\n", ticket_tmp->ticket_number);
 					d->ticket_head = ticket_tmp->ticket_number;
 				}
 				osp_spin_unlock(&d->mutex);
-
+			
 				wake_up_all(&d->blockq);
-				r = 0;
 			}	
 		}	
 	
