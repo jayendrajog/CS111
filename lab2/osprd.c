@@ -313,6 +313,15 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 				// bruh that's very greedy/selfish isn't it
 				return -EDEADLK;
 			}
+			// check whether you have read already or not			
+			osp_spin_lock(&d->mutex);
+			list_for_each_safe(pos, q, &d->read_list.list) {
+				tmp = list_entry(pos, struct my_list, list);
+				if (tmp->pid == current->pid) {
+					return -EDEADLK;
+				}
+			}
+			osp_spin_unlock(&d->mutex);
 
 			wait_event_sig = wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && list_empty(&d->read_list.list) && d->write_lock_holder == -1));
 			if (wait_event_sig == 0 || wait_event_sig == -ERESTARTSYS) {
@@ -351,6 +360,15 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 			}
 		} else {
 			// attempt to read-lock
+			// first check deadlock
+			osp_spin_lock(&d->mutex);
+			pid_tmp = d->write_lock_holder;
+			osp_spin_unlock(&d->mutex);
+			if (pid_tmp == current->pid) {
+				// bruh that's very greedy/selfish isn't it
+				return -EDEADLK;
+			}
+
 			wait_event_sig = wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && d->write_lock_holder == -1));
 			if (wait_event_sig == 0 || wait_event_sig == -ERESTARTSYS) {
 				if (wait_event_sig == 0) {
