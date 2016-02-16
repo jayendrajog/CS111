@@ -295,15 +295,16 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		
 		ticket_tmp = kmalloc(sizeof(struct my_ticket_list), GFP_ATOMIC);
 		ticket_tmp->ticket_number = my_ticket;
-
+		
 		osp_spin_lock(&d->mutex);
 		list_add_tail(&ticket_tmp->list, &d->valid_ticket_list.list);
 		osp_spin_unlock(&d->mutex);		
 		
 		eprintk("I have ticket number %i\n", my_ticket);	
+		
 		list_for_each(pos, &d->valid_ticket_list.list) {
 			ticket_tmp = list_entry(pos, struct my_ticket_list, list);
-			eprint("Ticket number is %i\n", ticket_tmp->ticket_number);
+			eprintk("Ticket number is %i\n", ticket_tmp->ticket_number);
 		}
 		
 		
@@ -363,7 +364,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 				list_add_tail((struct list_head *)&tmp->list, &d->read_list.list);
 				// TODO: do I need spin lock here? My guess is no b/c I'm in the if statement
 				
-				
+				/*
 				osp_spin_lock(&d->mutex);
 				pos = &d->valid_ticket_list.list;
 				osp_spin_unlock(&d->mutex);
@@ -381,7 +382,8 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 					d->ticket_head = ticket_tmp->ticket_number;
 				}
 				osp_spin_unlock(&d->mutex);
-
+				*/
+				d->ticket_head++;
 				wake_up_all(&d->blockq);
 				r = 0;
 			}	
