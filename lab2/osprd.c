@@ -192,6 +192,7 @@ static int osprd_close_last(struct inode *inode, struct file *filp)
 			osp_spin_lock(&d->mutex);
 			if (current->pid == d->write_lock_holder) {
 				filp->f_flags ^= F_OSPRD_LOCKED;
+				eprintk("Process (%i) release write lock\n", current->pid);
 				d->write_lock_holder = -1;
 				wake_up_all(&d->blockq);
 			}
@@ -214,6 +215,7 @@ static int osprd_close_last(struct inode *inode, struct file *filp)
 			if (pid_exist) {
 				osp_spin_lock(&d->mutex);
 				filp->f_flags ^= F_OSPRD_LOCKED;
+				eprintk("Process (%i) release read lock\n", current->pid);
 				wake_up_all(&d->blockq);
 				osp_spin_unlock(&d->mutex);
 			}
@@ -306,7 +308,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		osp_spin_lock(&d->mutex);
 		list_add_tail(&ticket_tmp->list, &d->valid_ticket_list.list);
 		osp_spin_unlock(&d->mutex);		
-		
+		//eprintk("Process has ticket number %i\n", my_ticket);	
 		if (filp_writable) {
 			// attempt to write-lock
 			wait_event_sig = wait_event_interruptible(d->blockq, (my_ticket == d->ticket_head && list_empty(&d->read_list.list) && d->write_lock_holder == -1));
@@ -316,14 +318,17 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 					filp->f_flags |= F_OSPRD_LOCKED;
 					osp_spin_lock(&d->mutex);
 					d->write_lock_holder = current->pid;
+					eprintk("Process (%i) with ticket number %i acquired write lock\n", current->pid, my_ticket);
 					osp_spin_unlock(&d->mutex);
 					r = 0;
 				}
-
+				
+				eprintk("Process (%i) with ticket number %i received signal\n", current->pid, my_ticket);
 				// Delete this ticket from the queue (valid_ticket_list) because we just served it (either actually served it, or because of signal)	
 				osp_spin_lock(&d->mutex);
 				pos = d->valid_ticket_list.list.next;
 				ticket_tmp = list_entry(pos, struct my_ticket_list, list);
+				eprintk("In process (%i) with ticket number %i...about to delete ticket number %i\n", current->pid, my_ticket, ticket_tmp->ticket_number);
 				list_del(pos);
 				kfree(ticket_tmp);
 				osp_spin_unlock(&d->mutex);
@@ -338,6 +343,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 				}
 				osp_spin_unlock(&d->mutex);
 
+				wake_up_all(&d->blockq);
 				// NOTE: we don't call wake_up_all here cuz once the write-lock is locked, nobody can do anything until write-lock is released
 			}
 		} else {
@@ -351,15 +357,19 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 					// TODO: does kmalloc ever fail?
 					tmp->pid = current->pid;
 					osp_spin_lock(&d->mutex);
+
+					eprintk("Process (%i) with ticket number %i acquired read lock\n", current->pid, my_ticket);
 					list_add_tail((struct list_head *)&tmp->list, &d->read_list.list);
 					osp_spin_unlock(&d->mutex);
 					r = 0;
 				}
 			
+				eprintk("Process (%i) with ticket number %i is killed\n", current->pid, my_ticket);
 				// Delete this ticket from the queue (valid_ticket_list) because we just served it (either actually served it, or because of signal)	
 				osp_spin_lock(&d->mutex);
 				pos = d->valid_ticket_list.list.next;
 				ticket_tmp = list_entry(pos, struct my_ticket_list, list);
+				eprintk("In process (%i) with ticket number %i...about to delete ticket number %i\n", current->pid, my_ticket, ticket_tmp->ticket_number);
 				list_del(pos);
 				kfree(ticket_tmp);
 				osp_spin_unlock(&d->mutex);
@@ -438,6 +448,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 			osp_spin_lock(&d->mutex);
 			if (current->pid == d->write_lock_holder) {
 				filp->f_flags ^= F_OSPRD_LOCKED;
+				eprintk("Process (%i) release write lock\n", current->pid);
 				d->write_lock_holder = -1;
 				wake_up_all(&d->blockq);
 				r = 0;
@@ -460,6 +471,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 			if (pid_exist) {
 				osp_spin_lock(&d->mutex);
 				filp->f_flags ^= F_OSPRD_LOCKED;
+				eprintk("Process (%i) release read lock\n", current->pid);
 				list_del(pos);
 				kfree(list_entry(pos, struct my_list, list));
 				wake_up_all(&d->blockq);
