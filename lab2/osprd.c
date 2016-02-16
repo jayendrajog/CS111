@@ -189,16 +189,19 @@ static int osprd_close_last(struct inode *inode, struct file *filp)
 			
 		if (filp_writable) {
 			// attempt to release a write lock
+			osp_spin_lock(&d->mutex);
 			if (current->pid == d->write_lock_holder) {
 				filp->f_flags ^= F_OSPRD_LOCKED;
 				d->write_lock_holder = -1;
 				wake_up_all(&d->blockq);
 			}
+			osp_spin_unlock(&d->mutex);
 		} else {
 			// attempt to release one or multiple read locks own by this process
 			struct list_head *pos, *q;
 			struct my_list *tmp;
 			int pid_exist = 0;
+			osp_spin_lock(&d->mutex);
 			list_for_each_safe(pos, q, &d->read_list.list) {
 				tmp = list_entry(pos, struct my_list, list);
 				if (tmp->pid == current->pid) {
@@ -207,9 +210,12 @@ static int osprd_close_last(struct inode *inode, struct file *filp)
 					kfree(tmp);
 				}
 			}
+			osp_spin_unlock(&d->mutex);
 			if (pid_exist) {
+				osp_spin_lock(&d->mutex);
 				filp->f_flags ^= F_OSPRD_LOCKED;
 				wake_up_all(&d->blockq);
+				osp_spin_unlock(&d->mutex);
 			}
 		}
 
@@ -384,7 +390,8 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		//r = -ENOTTY;
 		
 		if (filp_writable) {
-			// attempt to write-lock		
+			// attempt to write-lock
+			osp_spin_lock(&d->mutex);		
 			if (d->ticket_head == d->ticket_tail && list_empty(&d->read_list.list) && d->write_lock_holder == -1) {
 				// I'm ready...it's my time to shine!	
 				filp->f_flags |= F_OSPRD_LOCKED;
@@ -395,8 +402,10 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 				// TODO: check deadlock
 				r = -EBUSY;
 			}
+			osp_spin_unlock(&d->mutex);
 		} else {
 			// attempt to read-lock
+			osp_spin_lock(&d->mutex);
 			if (d->ticket_head == d->ticket_tail && d->write_lock_holder == -1) {
 				// I'm ready...it's my time to shine!
 				filp->f_flags |= F_OSPRD_LOCKED;
@@ -408,7 +417,8 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 			} else {
 				// TODO: check deadlock
 				r = -EBUSY;
-			}	
+			}
+			osp_spin_unlock(&d->mutex);
 		}	
 
 	} else if (cmd == OSPRDIOCRELEASE) {
@@ -425,6 +435,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		
 		if (filp_writable) {
 			// attempt to release a write lock
+			osp_spin_lock(&d->mutex);
 			if (current->pid == d->write_lock_holder) {
 				filp->f_flags ^= F_OSPRD_LOCKED;
 				d->write_lock_holder = -1;
@@ -434,20 +445,25 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 				// bruh you don't have the lock!
 				r = -EINVAL;
 			}
+			osp_spin_unlock(&d->mutex);
 		} else {
 			// attempt to release a read lock
 			int pid_exist = 0;
+			osp_spin_lock(&d->mutex);
 			list_for_each_safe(pos, q, &d->read_list.list) {
 				if ((list_entry(pos, struct my_list, list))->pid == current->pid) {
 					pid_exist = 1;
 					break;
 				}
 			}
+			osp_spin_unlock(&d->mutex);
 			if (pid_exist) {
+				osp_spin_lock(&d->mutex);
 				filp->f_flags ^= F_OSPRD_LOCKED;
 				list_del(pos);
 				kfree(list_entry(pos, struct my_list, list));
 				wake_up_all(&d->blockq);
+				osp_spin_unlock(&d->mutex);
 				r = 0;
 			} else {
 				r = -EINVAL;
