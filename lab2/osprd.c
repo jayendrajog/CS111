@@ -300,12 +300,12 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		list_add_tail(&ticket_tmp->list, &d->valid_ticket_list.list);
 		osp_spin_unlock(&d->mutex);		
 		
-		eprintk("I have ticket number %i\n", my_ticket);	
+		eprintk("Added ticket number %i\n", my_ticket);	
 		
-		list_for_each(pos, &d->valid_ticket_list.list) {
-			ticket_tmp = list_entry(pos, struct my_ticket_list, list);
-			eprintk("Ticket number is %i\n", ticket_tmp->ticket_number);
-		}
+		//list_for_each(pos, &d->valid_ticket_list.list) {
+		//	ticket_tmp = list_entry(pos, struct my_ticket_list, list);
+		//	eprintk("Ticket number is %i\n", ticket_tmp->ticket_number);
+		//}
 		
 		
 		if (filp_writable) {
@@ -315,18 +315,32 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 				filp->f_flags |= F_OSPRD_LOCKED;
 			
 				// Delete this ticket from the queue (valid_ticket_list) because we just served it
-				d->write_lock_holder = current->pid;
 				d->ticket_head++;
-				/*
+				
 				osp_spin_lock(&d->mutex);
 				d->write_lock_holder = current->pid;
-				pos = &d->valid_ticket_list.list;
+				//pos = &((d->valid_ticket_list.list).next);
 				//osp_spin_unlock(&d->mutex);
-				ticket_tmp = list_entry(pos, struct my_ticket_list, list);
-				eprintk("pos is %x\n", pos);
-				eprintk("ticket_tmp is %x\n", ticket_tmp);
-				list_del(pos);
-				kfree(ticket_tmp);
+				
+				//ticket_tmp = list_entry(pos, struct my_ticket_list, list);
+				//eprintk("pos is %x\n", pos);
+				//eprintk("ticket_tmp is %x\n", ticket_tmp);
+				//eprintk("About to delete ticket number %i\n", ticket_tmp->ticket_number);
+				//list_del(pos);
+				//kfree(ticket_tmp);
+
+				list_for_each_safe(pos, q, &d->valid_ticket_list.list) {
+					ticket_tmp = list_entry(pos, struct my_ticket_list, list);
+					if (ticket_tmp->ticket_number = my_ticket) {
+						eprintk("About to delete ticket number %i\n", ticket_tmp->ticket_number);
+						list_del(pos);
+						kfree(ticket_tmp);
+						break;
+					}
+				}
+
+				osp_spin_unlock(&d->mutex);
+				/*
 				osp_spin_unlock(&d->mutex);
 				
 				// Set ticket_head to the next one in queue
