@@ -316,7 +316,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 			
 				// Delete this ticket from the queue (valid_ticket_list) because we just served it
 				d->ticket_head++;
-				
+				eprintk("ticket_head is now %i\n", d->ticket_head);
 				osp_spin_lock(&d->mutex);
 				d->write_lock_holder = current->pid;
 				pos = d->valid_ticket_list.list.next;
@@ -325,20 +325,20 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 				list_del(pos);
 				kfree(ticket_tmp);
 				osp_spin_unlock(&d->mutex);
-				/*
-				osp_spin_unlock(&d->mutex);
 				
 				// Set ticket_head to the next one in queue
 				osp_spin_lock(&d->mutex);
 				if (list_empty_careful(&d->valid_ticket_list.list)) {
-					d->ticket_head = d->ticket_tail;
+					eprintk("Nothing left in linked list\n");
+					eprintk("Empty so about to set ticket_head to %i\n", d->ticket_tail);
+					//d->ticket_head = d->ticket_tail;
 				} else {
-					ticket_tmp = list_entry(&d->valid_ticket_list.list, struct my_ticket_list, list);
-				
-					d->ticket_head = ticket_tmp->ticket_number;
+					ticket_tmp = list_entry(d->valid_ticket_list.list.next, struct my_ticket_list, list);
+					eprintk("About to set ticket_head to %i\n", ticket_tmp->ticket_number);
+					//d->ticket_head = ticket_tmp->ticket_number;
 				}
 				osp_spin_unlock(&d->mutex);
-				*/
+				
 				//osp_spin_lock(&d->mutex);
 				//ticket_tmp = list_entry(&d->valid_ticket_list.list, struct my_ticket_list, list);
 				//if (!ticket_tmp)
