@@ -170,7 +170,7 @@ close FOO;
 	#18
 	[
 	'(echo foo | ./osprdaccess -w -l /dev/osprda /dev/osprda)',
-	"ioctl OSPRDIOACQUIRE: congrats deadlock avoided"
+	"ioctl OSPRDIOACQUIRE: deadlock avoided"
 	]
     );
 
