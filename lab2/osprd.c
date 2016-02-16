@@ -16,7 +16,7 @@
 
 #include "spinlock.h"
 #include "osprd.h"
-	
+
 #include <linux/list.h>	// for linked list
 
 /* The size of an OSPRD sector. */
