@@ -319,15 +319,6 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 				
 				osp_spin_lock(&d->mutex);
 				d->write_lock_holder = current->pid;
-				//pos = &((d->valid_ticket_list.list).next);
-				//osp_spin_unlock(&d->mutex);
-				
-				//ticket_tmp = list_entry(pos, struct my_ticket_list, list);
-				//eprintk("pos is %x\n", pos);
-				//eprintk("ticket_tmp is %x\n", ticket_tmp);
-				//eprintk("About to delete ticket number %i\n", ticket_tmp->ticket_number);
-				//list_del(pos);
-				//kfree(ticket_tmp);
 
 				list_for_each_safe(pos, q, &d->valid_ticket_list.list) {
 					ticket_tmp = list_entry(pos, struct my_ticket_list, list);
