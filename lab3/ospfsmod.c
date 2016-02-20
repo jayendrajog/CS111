@@ -1008,7 +1008,23 @@ create_blank_direntry(ospfs_inode_t *dir_oi)
 	//    entries and return one of them.
 
 	/* EXERCISE: Your code here. */
-	return ERR_PTR(-EINVAL); // Replace this line
+	//return ERR_PTR(-EINVAL); // Replace this line
+
+	ospfs_direntry_t * od;
+	uint32_t offset;
+	uint32_t new_size;
+
+	for (offset = 0; offset < dir_oi->oi_size; offset += OSPFS_DIRENTRY_SIZE) {
+		od = ospfs_inode_data(dir_oi, offset);
+		if (od->od_ino == 0)	// we found a free dir entry
+			return od;
+	}
+
+	// can not find free directory entry
+	new_size = (ospfs_size2nblocks(dir_oi->oi_size) + 1) * OSPFS_BLKSIZE;
+	change_size(dir_oi, new_size);	// TODO: implement this and check return error
+	dir_oi->oi_size = new_size;
+	return ospfs_inode_data(dir_oi, offset);	// Tuan's code is so clever OMG!
 }
 
 // ospfs_link(src_dentry, dir, dst_dentry
