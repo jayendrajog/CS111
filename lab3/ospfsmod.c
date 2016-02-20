@@ -594,6 +594,20 @@ static void
 free_block(uint32_t blockno)
 {
 	/* EXERCISE: Your code here */
+
+	void * bitmap_block_addr;		// address of the first bitmap block
+	bitmap_block_addr = ospfs_block(2);	// "free bitmap block" starts at 2
+
+	if (blockno < (ospfs_super->os_firstinob + ospfs_super->os_ninodes)) {
+		eprintk(KERN_ALERT, "Attempting to free privilege (non-data) block!\n");
+		return;
+	} else if (blockno >= ospfs_super->os_nblocks) {
+		eprintk(KERN_ALERT, "Attempting to free non-existing block!\n");
+		return;
+	} else { // TODO: check that block is already free?
+		bitvector_set(bitmap_block_addr, blockno);
+		return;
+	}
 }
 
 
