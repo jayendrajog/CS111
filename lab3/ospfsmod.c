@@ -553,6 +553,28 @@ static uint32_t
 allocate_block(void)
 {
 	/* EXERCISE: Your code here */
+	//return 0;
+
+	void * bitmap_block_addr;	// address of the first bitmap block
+	uint32_t nblocks;		// number of blocks on disk
+	uint32_t block_num;		// the block number we allocated
+	int found_free_block = 0;	// 0 for not found, 1 for found
+
+	bitmap_block_addr = ospfs_block(2);	// "free bitmap block" starts at 2
+	nblocks = ospfs_super->os_nblocks;
+	block_num = 2;				// starts at 2
+
+	for (; block_num < nblocks; block_num++) {
+		if (bitvector_test(bitmap_block_addr, block_num)) {
+			found_free_block = 1;	// found
+			break;
+		}
+	}
+
+	if (found_free_block) {
+		bitvector_clear(bitmap_block_addr, block_num);
+		return block_num;
+	}
 	return 0;
 }
 
