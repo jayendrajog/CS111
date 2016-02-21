@@ -699,22 +699,58 @@ add_block(ospfs_inode_t *oi)
 
 	// keep track of allocations to free in case of -ENOSPC
 	//uint32_t *allocated[2] = { 0, 0 };
-	uint32_t allocated_block[2] = { 0, 0 };	// NOTE: I don't see why we need array of ptrs
+	uint32_t allocated_block[3] = { 0, 0, 0 };	// NOTE: I don't see why we need array of ptrs
 	
 	/* EXERCISE: Your code here */
 	//return -EIO; // Replace this line
+
+	uint32_t indirect_no;
+	uint32_t * indirect_addr;
+	uint32_t * indirect2_addr;
 
 	allocated_block[0] = allocate_block();
 	if (allocated_block[0] == 0)	// no more space
 		return -ENOSPC;
 
-	if (n > OSPFS_NDIRECT + OSPFS_NINDIRECT) {	// we already have indirect^2 block
-		
+	// NOTE: n will be the index of the block that we are adding because index is 0 base
+	if (n >= OSPFS_NDIRECT + OSPFS_NINDIRECT) {	
+		if (n == OSPFS_NDIRECT + OSPFS_NINDIRECT) {
+			// we need to add the indirect2 and indirect block
+			allocated_block[1] = allocate_block();
+			if (allocated_block[1] == 0) {
+				// no more space
+				free_block(allocated_block[0]);
+				return -ENOSPC;
+			}
+			allocated_block[2] = allocate_block();
+			if (allocated_block[2] == 0) {
+				// no more space
+				free_block(allocated_block[0]);
+				free_block(allocated_block[1]);
+				return -ENOSPC;
+			}
+			indirect2_addr = (uint32_t *) ospfs_block(allocated_block[2]);
+			indirect2_addr[0] = allocated_block[1];
+		} else if ((n - OSPFS_NDIRECT - OSPFS_NINDIRECT) % OSPFS_NINDIRECT == 0) {
+			// need to add additional indirect block
+			allocated_block[1] = allocate_block();
+			if (allocated_block[1] == 0) {
+				// no more space
+				free_block(allocated_block[0]);
+				return -ENOSPC;
+			}
+			
+			indirect2_addr = (uint32_t *) ospfs_block(oi->oi_indirect2);
+			indirect2_addr[indir_index(n)] = allocated_block[1];
+		}
+		// store the block number into the appropriate place
+		// TODO: FIX!
+
+		indirect2_addr = (uint32_t *) ospfs_block(oi->oi_indirect2);
+		indirect_addr = (uint32_t *) ospfs_block(indirect2_addr[indir_index(n)]);
+		indirect_addr[direct_index(n)] = allocated_block[0];
 			
 	} else if (n > OSPFS_NDIRECT) {	// we already have indirect block
-		if (n == OSPFS_NDIRECT + OSPFS_NINDIRECT) {
-			// we need to add the indirect2 block
-		}
 
 	} else {
 		if (n == OSPFS_NDIRECT) {
