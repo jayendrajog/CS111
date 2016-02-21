@@ -731,6 +731,7 @@ add_block(ospfs_inode_t *oi)
 			}
 			indirect2_addr = (uint32_t *) ospfs_block(allocated_block[2]);
 			indirect2_addr[0] = allocated_block[1];
+			oi->oi_indirect2 = allocated_block[2];
 		} else if ((n - OSPFS_NDIRECT - OSPFS_NINDIRECT) % OSPFS_NINDIRECT == 0) {
 			// need to add additional indirect block
 			allocated_block[1] = allocate_block();
@@ -750,12 +751,24 @@ add_block(ospfs_inode_t *oi)
 		indirect_addr = (uint32_t *) ospfs_block(indirect2_addr[indir_index(n)]);
 		indirect_addr[direct_index(n)] = allocated_block[0];
 			
-	} else if (n > OSPFS_NDIRECT) {	// we already have indirect block
-
-	} else {
+	} else if (n >= OSPFS_NDIRECT) {	
 		if (n == OSPFS_NDIRECT) {
 			// we need to add the indirect block
+			allocated_block[1] = allocate_block();
+			if (allocated_block[1] == 0) {
+				// no more space
+				free_block(allocated_block[0]);
+				return -ENOSPC;
+			}
+			indirect_addr = (uint32_t *) ospfs_block(allocated_block[1]);
+			indirect_addr[0] = allocated_block[0];
+			oi->oi_indirect = allocated_block[1];
+		} else {
+			// just add the direct block to the indirect block
+			indirect_addr = (uint32_t *) ospfs_block(oi->oi_indirect);
+			indirect_addr[direct_index(n)] = allocated_block[0];
 		}
+	} else {
 	}
 }
 
