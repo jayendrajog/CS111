@@ -686,10 +686,29 @@ add_block(ospfs_inode_t *oi)
 	uint32_t n = ospfs_size2nblocks(oi->oi_size);
 
 	// keep track of allocations to free in case of -ENOSPC
-	uint32_t *allocated[2] = { 0, 0 };
-
+	//uint32_t *allocated[2] = { 0, 0 };
+	uint32_t allocated_block[2] = { 0, 0 };	// NOTE: I don't see why we need array of ptrs
+	
 	/* EXERCISE: Your code here */
-	return -EIO; // Replace this line
+	//return -EIO; // Replace this line
+
+	allocated_block[0] = allocate_block();
+	if (allocated_block[0] == 0)	// no more space
+		return -ENOSPC;
+
+	if (n > OSPFS_NDIRECT + OSPFS_NINDIRECT) {	// we already have indirect^2 block
+		
+			
+	} else if (n > OSPFS_NDIRECT) {	// we already have indirect block
+		if (n == OSPFS_NDIRECT + OSPFS_NINDIRECT) {
+			// we need to add the indirect2 block
+		}
+
+	} else {
+		if (n == OSPFS_NDIRECT) {
+			// we need to add the indirect block
+		}
+	}
 }
 
 
