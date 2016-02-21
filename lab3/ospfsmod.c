@@ -704,7 +704,6 @@ add_block(ospfs_inode_t *oi)
 	/* EXERCISE: Your code here */
 	//return -EIO; // Replace this line
 
-	uint32_t indirect_no;
 	uint32_t * indirect_addr;
 	uint32_t * indirect2_addr;
 
@@ -745,7 +744,6 @@ add_block(ospfs_inode_t *oi)
 			indirect2_addr[indir_index(n)] = allocated_block[1];
 		}
 		// store the block number into the appropriate place
-		// TODO: FIX!
 
 		indirect2_addr = (uint32_t *) ospfs_block(oi->oi_indirect2);
 		indirect_addr = (uint32_t *) ospfs_block(indirect2_addr[indir_index(n)]);
@@ -769,7 +767,12 @@ add_block(ospfs_inode_t *oi)
 			indirect_addr[direct_index(n)] = allocated_block[0];
 		}
 	} else {
+		// just add to the direct list
+		oi->oi_direct[direct_index(n)] = allocated_block[0];
 	}
+	oi->oi_size = (n + 1) * OSPFS_BLKSIZE;
+	return 0;	// successful
+	// TODO: when are we ever going to return -EIO?
 }
 
 
