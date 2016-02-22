@@ -729,6 +729,7 @@ add_block(ospfs_inode_t *oi)
 				return -ENOSPC;
 			}
 			indirect2_addr = (uint32_t *) ospfs_block(allocated_block[2]);
+			memset(indirect2_addr, 0, OSPFS_BLKSIZE);
 			indirect2_addr[0] = allocated_block[1];
 			oi->oi_indirect2 = allocated_block[2];
 		} else if ((n - OSPFS_NDIRECT - OSPFS_NINDIRECT) % OSPFS_NINDIRECT == 0) {
@@ -747,7 +748,9 @@ add_block(ospfs_inode_t *oi)
 
 		indirect2_addr = (uint32_t *) ospfs_block(oi->oi_indirect2);
 		indirect_addr = (uint32_t *) ospfs_block(indirect2_addr[indir_index(n)]);
+		memset(indirect_addr, 0, OSPFS_BLKSIZE);
 		indirect_addr[direct_index(n)] = allocated_block[0];
+		memset(ospfs_block(allocated_block[0]), 0, OSPFS_BLKSIZE);
 			
 	} else if (n >= OSPFS_NDIRECT) {	
 		if (n == OSPFS_NDIRECT) {
@@ -759,16 +762,20 @@ add_block(ospfs_inode_t *oi)
 				return -ENOSPC;
 			}
 			indirect_addr = (uint32_t *) ospfs_block(allocated_block[1]);
+			memset(indirect_addr, 0, OSPFS_BLKSIZE);
 			indirect_addr[0] = allocated_block[0];
+			memset(ospfs_block(allocated_block[0]), 0, OSPFS_BLKSIZE);
 			oi->oi_indirect = allocated_block[1];
 		} else {
 			// just add the direct block to the indirect block
 			indirect_addr = (uint32_t *) ospfs_block(oi->oi_indirect);
 			indirect_addr[direct_index(n)] = allocated_block[0];
+			memset(ospfs_block(allocated_block[0]), 0, OSPFS_BLKSIZE);
 		}
 	} else {
 		// just add to the direct list
 		oi->oi_direct[direct_index(n)] = allocated_block[0];
+		memset(ospfs_block(allocated_block[0]), 0, OSPFS_BLKSIZE);
 	}
 	oi->oi_size = (n + 1) * OSPFS_BLKSIZE;
 	return 0;	// successful
