@@ -917,19 +917,43 @@ change_size(ospfs_inode_t *oi, uint32_t new_size)
 {
 	uint32_t old_size = oi->oi_size;
 	int r = 0;
+	int addCount = 0;
+	int funcRet;
 
 	while (ospfs_size2nblocks(oi->oi_size) < ospfs_size2nblocks(new_size)) {
 	        /* EXERCISE: Your code here */
-		return -EIO; // Replace this line
+		//return -EIO; // Replace this line
+		funcRet = add_block(oi);
+		if (funcRet == -ENOSPC) {
+			while (addCount--)
+				remove_block(oi);
+			r = -ENOSPC;
+			break;
+		}
+		if (funcRet == -EIO) {
+			// TODO: edit this?
+			return -EIO;
+		}
+		addCount++;
 	}
 	while (ospfs_size2nblocks(oi->oi_size) > ospfs_size2nblocks(new_size)) {
 	        /* EXERCISE: Your code here */
-		return -EIO; // Replace this line
+		//return -EIO; // Replace this line
+		if (remove_block(oi)) {
+			// TODO: edit this?
+			return -EIO;
+		}
 	}
 
 	/* EXERCISE: Make sure you update necessary file meta data
 	             and return the proper value. */
-	return -EIO; // Replace this line
+	//return -EIO; // Replace this line
+
+	if (r)
+		oi->oi_size = old_size;
+	else
+		oi->oi_size = new_size;
+	return r;
 }
 
 
