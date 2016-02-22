@@ -813,7 +813,34 @@ remove_block(ospfs_inode_t *oi)
 	
 	if (n > OSPFS_NDIRECT + OSPFS_NINDIRECT) {
 		// we gotta deal with indirect2
-	
+		if (n - 1 == OSPFS_NDIRECT + OSPFS_NINDIRECT) {
+			// we need to remove the indirect2 and indirect block
+			to_free_block[2] = oi->oi_indirect2;
+			indirect2_addr = (uint32_t *) ospfs_block(oi->oi_indirect2);
+			to_free_block[1] = indirect2_addr[0];
+			indirect_addr = (uint32_t *) ospfs_block(indirect2_addr[0]);
+			to_free_block[0] = indirect_addr[0];
+			oi->oi_indirect2 = 0;	// TODO: set this to 0?
+			free_block(to_free_block[0]);
+			free_block(to_free_block[1]);
+			free_block(to_free_block[2]);
+		} else if ((n - 1) % OSPFS_NINDIRECT == 0) {
+			// need to remove the indirect block
+			indirect2_addr = (uint32_t *) ospfs_block(oi->oi_indirect2);
+			to_free_block[1] = indirect2_addr[indir_index(nth)];
+			indirect_addr = (uint32_t *) ospfs_block(to_free_block[1]);
+			to_free_block[0] = indirect_addr[direct_index(nth)];	// the direct_index(nth) should return 0
+			indirect2_addr[indir_index(nth)] = 0;	// TODO: set thsi to 0?
+			free_block(to_free_block[0]);
+			free_block(to_free_block[1]);
+		} else {
+			// only need to remove the direct block
+			indirect2_addr = (uint32_t *) ospfs_block(oi->oi_indirect2);
+			indirect_addr = (uint32_t *) ospfs_block(indirect2_addr[indir_index(nth)]);
+			to_free_block[0] = indirect_addr[direct_index(nth)];
+			indirect_addr[direct_index(nth)] = 0;	// TODO: same as above
+			free_block(to_free_block[0]);
+		}
 	} else if (n > OSPFS_NDIRECT) {
 		// we gotta deal with indirect
 		if (n - 1 == OSPFS_NDIRECT) {
