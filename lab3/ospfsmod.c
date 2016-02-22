@@ -803,9 +803,28 @@ remove_block(ospfs_inode_t *oi)
 {
 	// current number of blocks in file
 	uint32_t n = ospfs_size2nblocks(oi->oi_size);
+	uint32_t nth = n - 1;
 
+	uint32_t * indirect_addr;
+	uint32_t * indirect2_addr;
+	uint32_t to_free_block[3] = { 0, 0, 0 };
 	/* EXERCISE: Your code here */
-	return -EIO; // Replace this line
+	//return -EIO; // Replace this line
+	
+	if (n > OSPFS_NDIRECT + OSPFS_NINDIRECT) {
+		// we gotta deal with indirect2
+	
+	} else if (n > OSPFS_NDIRECT) {
+		// we gotta deal with indirect
+
+	} else {
+		// only have to deal with direct
+		to_free_block[0] = oi->oi_direct[nth];
+		oi->oi_direct[nth] = 0;	// TODO: set block pointer to 0? this thing?
+		free_block(to_free_block[0]);
+	}
+	oi->oi_size = (n - 1) * OSPFS_BLKSIZE;
+	return 0;
 }
 
 
