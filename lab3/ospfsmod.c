@@ -1187,6 +1187,7 @@ create_blank_direntry(ospfs_inode_t *dir_oi)
 	ospfs_direntry_t * od;
 	uint32_t offset;
 	uint32_t new_size;
+	int ret;
 
 	for (offset = 0; offset < dir_oi->oi_size; offset += OSPFS_DIRENTRY_SIZE) {
 		od = ospfs_inode_data(dir_oi, offset);
@@ -1196,7 +1197,13 @@ create_blank_direntry(ospfs_inode_t *dir_oi)
 
 	// can not find free directory entry
 	new_size = (ospfs_size2nblocks(dir_oi->oi_size) + 1) * OSPFS_BLKSIZE;
-	change_size(dir_oi, new_size);	// TODO: implement this and check return error
+	ret = change_size(dir_oi, new_size);
+	
+	if (ret == -EIO)
+		return ERR_PTR(-EIO);
+	if (ret == -ENOSPC)
+		return ERR_PTR(-ENOSPC);
+	
 	dir_oi->oi_size = new_size;
 	return ospfs_inode_data(dir_oi, offset);	// Tuan's code is so clever OMG!
 }
@@ -1296,8 +1303,10 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
 		return -ENOSPC;
 	
 	// now lets get a new dir entry
-	new_direntry = create_blank_direntry(dir_oi);	// TODO: check errors here!!
-	
+	new_direntry = create_blank_direntry(dir_oi);
+	if (IS_ERR(new_direntry))
+		return PTR_ERR(new_direntry);	
+
 	// initialize direntry
 	new_direntry->od_ino = entry_ino;
 	memcpy(new_direntry->od_name, dentry->d_name.name, dentry->d_name.len);
