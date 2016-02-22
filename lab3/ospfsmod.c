@@ -816,7 +816,21 @@ remove_block(ospfs_inode_t *oi)
 	
 	} else if (n > OSPFS_NDIRECT) {
 		// we gotta deal with indirect
-
+		if (n - 1 == OSPFS_NDIRECT) {
+			// we need to remove the indirect block
+			to_free_block[1] = oi->oi_indirect;
+			indirect_addr = (uint32_t *) ospfs_block(oi->oi_indirect);
+			to_free_block[0] = indirect_addr[0];
+			free_block(to_free_block[1]);
+			free_block(to_free_block[0]);
+			oi->oi_indirect = 0;	// TODO: we set this to 0 right?
+		} else {
+			// we just need to remove the direct block from the indirect block
+			indirect_addr = (uint32_t *) ospfs_block(oi->oi_indirect);
+			to_free_block[0] = indirect_addr[direct_index(nth)];
+			indirect_addr[direct_index(nth)] = 0;	// TODO: same as above
+			free_block(to_free_block[0]);
+		}
 	} else {
 		// only have to deal with direct
 		to_free_block[0] = oi->oi_direct[nth];
