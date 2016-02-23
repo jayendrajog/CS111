@@ -555,6 +555,11 @@ ospfs_unlink(struct inode *dirino, struct dentry *dentry)
 
 	od->od_ino = 0;
 	oi->oi_nlink--;
+	
+	//delete non symbolic links that have nlink = 0
+	if(oi->oi_nlink == 0 && oi->oi_ftype != OSPFS_FTYPE_SYMLINK)
+		return change_size(oi, 0);
+
 	return 0;
 }
 
@@ -1499,6 +1504,8 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 
 	/* EXERCISE: Your code here. */
 	//return -EINVAL;
+
+	//essentially the same as doing symname_len = strlen(symname)
 	while (*(symname++) != 0)
 		symname_len++;
 
@@ -1535,6 +1542,7 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	new_ino->oi_size = symname_len;
 	new_ino->oi_ftype = OSPFS_FTYPE_SYMLINK;
 	new_ino->oi_nlink = old_ino->oi_nlink;
+//	new_ino->oi_nlink = 1;
 	memcpy(new_ino->oi_symlink, symname - symname_len - 1, symname_len);
 
 	/* Execute this code after your function has successfully created the

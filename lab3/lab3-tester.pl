@@ -91,6 +91,18 @@ close FOO;
       '15'
     ],
 
+	#hard link
+	[
+		'echo foo >> test/foo.txt & ln test/foo.txt test/gah.txt & cat test/gah.txt & echo blurb >> test/gah.txt && cat test/foo.txt; rm test/foo.txt test/gah.txt',
+		"foo foo blurb"
+	],
+	
+	#symbolic link
+	[
+		'ln -s hello.txt thelink & diff hello.txt thelink && echo Same contents & echo World >> hello.txt & diff hello.txt thelink && echo Same contents; rm thelink',
+		"Same contents Same contents"
+	],
+
 );
 
 my($ntest) = 0;
