@@ -14,7 +14,7 @@
 #include <asm/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-
+	
 /****************************************************************************
  * ospfsmod
  *
@@ -1162,7 +1162,7 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 	// Support files opened with the O_APPEND flag.  To detect O_APPEND,
 	// use struct file's f_flags field and the O_APPEND bit.
 	/* EXERCISE: Your code here */
-	if(filp->f_flags & O_APPEND != 0)
+	if((filp->f_flags & O_APPEND) != 0)
 	{
 		*f_pos = oi->oi_size; 
 	}
@@ -1200,7 +1200,7 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 		n = OSPFS_BLKSIZE - offset;
 		n = (n > (count - amount)) ? count - amount : n;
 		retval = copy_from_user(data + offset, buffer, n);
-		if(!retval)
+		if(retval)
 		{
 			return -EFAULT;
 		} 
