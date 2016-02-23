@@ -1162,27 +1162,28 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 	// Support files opened with the O_APPEND flag.  To detect O_APPEND,
 	// use struct file's f_flags field and the O_APPEND bit.
 	/* EXERCISE: Your code here */
-	
-	eprintk("Before checking APPEND, f_pos is %i (%x)\n", *f_pos, *f_pos);
-	eprintk("f_flags is %x\n", filp->f_flags);
-	eprintk("O_APPEND is %x\n", O_APPEND);
-	eprintk("& gives %x\n", filp->f_flags & O_APPEND);
+	//eprintk("Count at the begining is %i\n", count);
+	//eprintk("Before checking APPEND, f_pos is %i (%x)\n", *f_pos, *f_pos);
+	//eprintk("f_flags is %x\n", filp->f_flags);
+	//eprintk("O_APPEND is %x\n", O_APPEND);
+	//eprintk("& gives %x\n", filp->f_flags & O_APPEND);
 	if((filp->f_flags & O_APPEND) != 0)
 	{
 		*f_pos = oi->oi_size; 
 	}
-	eprintk("After checking APPEND, f_pos is %i (%x)\n", *f_pos, *f_pos);
+	//eprintk("After checking APPEND, f_pos is %i (%x)\n", *f_pos, *f_pos);
 
 	// If the user is writing past the end of the file, change the file's
 	// size to accomodate the request.  (Use change_size().)
 	/* EXERCISE: Your code here */
-	
+	//count = 5;
 	eprintk("f_pos is %i (%x)\n", *f_pos, *f_pos);
 	eprintk("count is %i (%x)\n", count, count);
 	eprintk("oi->oi_size is %i (%x)\n", oi->oi_size, oi->oi_size);
 	
 	if(*f_pos + count > oi->oi_size)
 	{
+		eprintk("Call changesize()\n");
 		changesize = change_size(oi, *f_pos + count);
 		if(changesize < 0) goto done; //error
 	}	
@@ -1192,6 +1193,7 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 
 	// Copy data block by block
 	while (amount < count && retval >= 0) {
+		eprintk("In while loop\n");
 		uint32_t blockno = ospfs_inode_blockno(oi, *f_pos);
 		uint32_t n;
 		char *data;
@@ -1202,7 +1204,7 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 		}
 
 		data = ospfs_block(blockno);
-
+		eprintk("Block number is %i\n", blockno);
 		// Figure out how much data is left in this block to write.
 		// Copy data from user space. Return -EFAULT if unable to read
 		// read user space.
@@ -1213,7 +1215,20 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 		offset = *f_pos % OSPFS_BLKSIZE;
 		n = OSPFS_BLKSIZE - offset;
 		n = (n > (count - amount)) ? count - amount : n;
+		eprintk("offset is %i\n", offset);
+		eprintk("n is %i\n", n);
+		eprintk("data address is %x\n", data);
+		//eprintk("buffer content is %c\n", buffer);
+		eprintk("data[0] is %c \n", *(data+offset));
+		eprintk("data[1] is %c \n", *(data+offset+1));
+		eprintk("data[2] is %c \n", *(data+offset+2));
+		eprintk("buffer address is %x\n", buffer);
+		eprintk("buffer[0] is %c \n", *(buffer));
+		eprintk("buffer[1] is %c \n", buffer[1]);
+		eprintk("buffer[2] is %c \n", *(buffer+2));
 		retval = copy_from_user(data + offset, buffer, n);
+		//retval = copy_from_user(data + 1, buffer + 1, n);
+		//retval = copy_from_user(data, buffer, 5);
 		if(!retval)
 		{
 			return -EFAULT;
