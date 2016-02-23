@@ -491,27 +491,26 @@ ospfs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		if(entry_oi->oi_ftype == OSPFS_FTYPE_REG)
 		{
 			ok_so_far = filldir(dirent, od->od_name, strlen(od->od_name), f_pos, od->od_ino, DT_REG);
-			//if(ok_so_far >= 0) f_pos++;
-			//else break;
+			if(ok_so_far >= 0) f_pos++;
+			else break;
 		}
 		else if(entry_oi->oi_ftype == OSPFS_FTYPE_SYMLINK)
 		{
 			ok_so_far = filldir(dirent, od->od_name, strlen(od->od_name), f_pos, od->od_ino, DT_LNK);
-			//if(ok_so_far >= 0) f_pos++;
-			//else break;
+			if(ok_so_far >= 0) f_pos++;
+			else break;
 		}
 		else if(entry_oi->oi_ftype == OSPFS_FTYPE_DIR)
 		{
 			ok_so_far = filldir(dirent, od->od_name, strlen(od->od_name), f_pos, od->od_ino, DT_DIR);
-			//if(ok_so_far >= 0) f_pos++;
-			//else break;	
+			if(ok_so_far >= 0) f_pos++;
+			else break;	
 		}
 		else{
 			r = 1; //error!
-			//break;
-			continue;
+			break;
 		}
-		f_pos++;
+	
 	}
 	// Save the file position and return!
 	filp->f_pos = f_pos;
@@ -1086,7 +1085,6 @@ ospfs_read(struct file *filp, char __user *buffer, size_t count, loff_t *f_pos)
 	ospfs_inode_t *oi = ospfs_inode(filp->f_dentry->d_inode->i_ino);
 	int retval = 0;
 	size_t amount = 0;
-	size_t total = 0;
 	// Make sure we don't read past the end of the file!
 	// Change 'count' so we never read past the end of the file.
 	/* EXERCISE: Your code here */
@@ -1097,7 +1095,7 @@ ospfs_read(struct file *filp, char __user *buffer, size_t count, loff_t *f_pos)
 	// Copy the data to user block by block
 	while (amount < count && retval >= 0) {
 		uint32_t blockno = ospfs_inode_blockno(oi, *f_pos);
-		uint32_t remain = count - total;	
+		uint32_t remain;
 		uint32_t n;
 		uint32_t offset;
 		char *data;
@@ -1115,14 +1113,18 @@ ospfs_read(struct file *filp, char __user *buffer, size_t count, loff_t *f_pos)
 		// into user space.
 		// Use variable 'n' to track number of bytes moved.
 		/* EXERCISE: Your code here */
-	
-		offset = *f_pos % OSPFS_BLKSIZE;		
-		n = OSPFS_BLKSIZE - offset; 
-		if(n > remain) n = remain;
+		remain = count - amount; 
+		offset = *f_pos % OSPFS_BLKSIZE;
+		//case more than one block left
+		if(remain > OSPFS_BLKSIZE)
+			n = OSPFS_BLKSIZE;
+		//case less than one block left
+		else{
+			n = remain;
+		}
 		retval = copy_to_user(buffer, data+offset, n);
 		if(retval < 0){
-			retval = -EFAULT;
-			goto done;
+			return -EFAULT;
 		}
 
 		buffer += n;
@@ -1164,6 +1166,7 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 	/* EXERCISE: Your code here */
 	if((filp->f_flags & O_APPEND) != 0)
 	{
+		//set the position to be at the end of the file
 		*f_pos = oi->oi_size; 
 	}
 
@@ -1173,7 +1176,7 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 	if(*f_pos + count > oi->oi_size)
 	{
 		changesize = change_size(oi, *f_pos + count);
-		if(changesize < 0) goto done; //error
+		if(changesize < 0) return amount; //error
 	}	
 
 	// Copy data block by block
@@ -1196,9 +1199,17 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 		/* EXERCISE: Your code here */
 		//retval = -EIO; // Replace these lines
 		//goto done;
-		offset = *f_pos % OSPFS_BLKSIZE;
-		n = OSPFS_BLKSIZE - offset;
-		n = (n > (count - amount)) ? count - amount : n;
+		offset = *f_pos % OSPFS_BLKSIZE;		
+		//case write to entire block
+		if(count - amount >= OSPFS_BLKSIZE)
+		{	
+			n = OSPFS_BLKSIZE;
+		}
+		//case write to part of block
+		else
+		{
+			n = count - amount;
+		}
 		retval = copy_from_user(data + offset, buffer, n);
 		if(retval)
 		{
