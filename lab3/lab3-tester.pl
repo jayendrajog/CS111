@@ -1,5 +1,5 @@
 #! /usr/bin/perl -w
-
+ 
 open(FOO, "ospfsmod.c") || die "Did you delete ospfsmod.c?";
 $lines = 0;
 $lines++ while defined($_ = <FOO>);
