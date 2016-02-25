@@ -1487,9 +1487,51 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 {
 	ospfs_inode_t *dir_oi = ospfs_inode(dir->i_ino);
 	uint32_t entry_ino = 0;
+	int symname_len = 0;
+	ospfs_symlink_inode_t * new_ino;
+	ospfs_direntry_t * new_direntry;
+	ospfs_direntry_t * old_file_direntry;
+	ospfs_inode_t * old_ino;
 
 	/* EXERCISE: Your code here. */
-	return -EINVAL;
+	//return -EINVAL;
+	while (*(symname++) != 0)
+		symname_len++;
+
+	if (dentry->d_name.len > OSPFS_MAXNAMELEN || symname_len > OSPFS_MAXSYMLINKLEN)
+		return -ENAMETOOLONG;
+	
+	if (find_direntry(dir_oi, dentry->d_name.name, dentry->d_name.len))
+		return -EEXIST;
+
+	// find new inode (and cast it to symlink inode)
+	for (entry_ino = 2; entry_ino < ospfs_super->os_ninodes; entry_ino++) {
+		new_ino = (ospfs_symlink_inode_t *) ospfs_inode(entry_ino);
+		if (new_ino->oi_nlink == 0)
+			break;
+	}
+
+	if (entry_ino == ospfs_super->os_ninodes)
+		return -ENOSPC;
+
+	// find new direntry
+	new_direntry = create_blank_direntry(dir_oi);
+	if (IS_ERR(new_direntry))
+		return PTR_ERR(new_direntry);
+
+	// initialize new direntry
+	new_direntry->od_ino = entry_ino;
+	memcpy(new_direntry->od_name, dentry->d_name.name, dentry->d_name.len);
+
+	// get original file's inode
+	old_file_direntry = find_direntry(dir_oi, symname - symname_len - 1, symname_len);
+	old_ino = ospfs_inode(old_file_direntry->od_ino);
+	
+	// initialize symlink inode
+	new_ino->oi_size = symname_len;
+	new_ino->oi_ftype = OSPFS_FTYPE_SYMLINK;
+	new_ino->oi_nlink = old_ino->oi_nlink;
+	memcpy(new_ino->oi_symlink, symname - symname_len - 1, symname_len);
 
 	/* Execute this code after your function has successfully created the
 	   file.  Set entry_ino to the created file's inode number before
