@@ -555,6 +555,11 @@ ospfs_unlink(struct inode *dirino, struct dentry *dentry)
 
 	od->od_ino = 0;
 	oi->oi_nlink--;
+
+	// delete non symbolic links that have nlink = 0
+	if (oi->oi_nlink == 0 && oi->oi_ftype != OSPFS_FTYPE_SYMLINK)
+		return change_size(oi, 0);
+
 	return 0;
 }
 
