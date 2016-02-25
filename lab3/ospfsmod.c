@@ -1354,6 +1354,7 @@ ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dent
 
 	ospfs_inode_t * dir_oi = ospfs_inode(dir->i_ino);
 	ospfs_direntry_t * new_direntry;
+	ospfs_inode_t * old_ino;	// pointer to the actual file's inode
 
 	if (dst_dentry->d_name.len > OSPFS_MAXNAMELEN)	// TODO: symname??
 		return -ENAMETOOLONG;
@@ -1367,6 +1368,9 @@ ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dent
 
 	new_direntry->od_ino = src_dentry->d_inode->i_ino;
 	memcpy(new_direntry->od_name, dst_dentry->d_name.name, dst_dentry->d_name.len);
+
+	old_ino = ospfs_inode(new_direntry->od_ino);
+	old_ino->oi_nlink++;
 	return 0;
 }
 
