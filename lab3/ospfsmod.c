@@ -601,7 +601,7 @@ allocate_block(void)
 
 	bitmap_block_addr = ospfs_block(2);	// "free bitmap block" starts at 2
 	nblocks = ospfs_super->os_nblocks;
-	block_num = 2;				// starts at 2
+	block_num = ospfs_super->os_firstinob + ospfs_super->os_ninodes;
 
 	for (; block_num < nblocks; block_num++) {
 		if (bitvector_test(bitmap_block_addr, block_num)) {
