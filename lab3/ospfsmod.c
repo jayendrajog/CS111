@@ -638,10 +638,10 @@ free_block(uint32_t blockno)
 	bitmap_block_addr = ospfs_block(2);	// "free bitmap block" starts at 2
 
 	if (blockno < (ospfs_super->os_firstinob + ospfs_super->os_ninodes)) {
-		eprintk(KERN_ALERT, "Attempting to free privilege (non-data) block!\n");
+		eprintk("Attempting to free privilege (non-data) block!\n");
 		return;
 	} else if (blockno >= ospfs_super->os_nblocks) {
-		eprintk(KERN_ALERT, "Attempting to free non-existing block!\n");
+		eprintk("Attempting to free non-existing block!\n");
 		return;
 	} else { // TODO: check that block is already free?
 		bitvector_set(bitmap_block_addr, blockno);
@@ -1418,7 +1418,7 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
 	//return -EINVAL; // Replace this line
 
 	uint32_t inode_no;
-	ospfs_inode_t * new_ino;
+	ospfs_inode_t * new_ino = 0;
 	ospfs_direntry_t * new_direntry;
 
 	if (dentry->d_name.len > OSPFS_MAXNAMELEN)
@@ -1429,6 +1429,8 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
 
 	for (inode_no = 2; inode_no < ospfs_super->os_ninodes; inode_no++) {
 		new_ino = ospfs_inode(inode_no);
+		if (!new_ino)
+			return -EIO;
 		if (new_ino->oi_nlink == 0) {
 			entry_ino = inode_no;
 			break;
@@ -1499,10 +1501,8 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	ospfs_inode_t *dir_oi = ospfs_inode(dir->i_ino);
 	uint32_t entry_ino = 0;
 	int symname_len = 0;
-	ospfs_symlink_inode_t * new_ino;
-	ospfs_direntry_t * new_direntry;
-	ospfs_direntry_t * old_file_direntry;
-	ospfs_inode_t * old_ino;
+	ospfs_symlink_inode_t * new_ino = 0;
+	ospfs_direntry_t * new_direntry;	
 
 	/* EXERCISE: Your code here. */
 	//return -EINVAL;
@@ -1518,6 +1518,8 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	// find new inode (and cast it to symlink inode)
 	for (entry_ino = 2; entry_ino < ospfs_super->os_ninodes; entry_ino++) {
 		new_ino = (ospfs_symlink_inode_t *) ospfs_inode(entry_ino);
+		if (!new_ino)
+			return -EIO;
 		if (new_ino->oi_nlink == 0)
 			break;
 	}
@@ -1534,10 +1536,6 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	new_direntry->od_ino = entry_ino;
 	memcpy(new_direntry->od_name, dentry->d_name.name, dentry->d_name.len);
 	memset(new_direntry->od_name + dentry->d_name.len, 0, 1);
-
-	// get original file's inode
-	//old_file_direntry = find_direntry(dir_oi, symname, symname_len);
-	//old_ino = ospfs_inode(old_file_direntry->od_ino);
 	
 	// initialize symlink inode
 	new_ino->oi_size = symname_len;
