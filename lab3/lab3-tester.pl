@@ -1,5 +1,5 @@
 #! /usr/bin/perl -w
-
+ 
 open(FOO, "ospfsmod.c") || die "Did you delete ospfsmod.c?";
 $lines = 0;
 $lines++ while defined($_ = <FOO>);
@@ -90,6 +90,18 @@ close FOO;
     [ 'echo truncernated11 > test/yes.txt | ls -l test/yes.txt | awk \'{ print $5 }\' ; rm test/yes.txt',
       '15'
     ],
+
+	#hard link
+	[
+		'echo foo >> test/foo.txt & ln test/foo.txt test/gah.txt & cat test/gah.txt & echo blurb >> test/gah.txt && cat test/foo.txt; rm test/foo.txt test/gah.txt',
+		"foo foo blurb"
+	],
+	
+	#symbolic link
+	[
+		'ln -s hello.txt thelink & diff hello.txt thelink && echo Same contents & echo World >> hello.txt & diff hello.txt thelink && echo Same contents; rm thelink',
+		"Same contents Same contents"
+	],
 
 );
 
