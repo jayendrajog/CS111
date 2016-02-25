@@ -1,4 +1,4 @@
-#include <linux/autoconf.h>
+#include <linux/autoconf.h> 
 #include <linux/version.h>
 #ifndef EXPORT_SYMTAB
 # define EXPORT_SYMTAB
@@ -1505,6 +1505,7 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 
 	/* EXERCISE: Your code here. */
 	//return -EINVAL;
+
 	symname_len = strlen(symname);
 
 	if (dentry->d_name.len > OSPFS_MAXNAMELEN || symname_len > OSPFS_MAXSYMLINKLEN)
