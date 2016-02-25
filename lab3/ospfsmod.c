@@ -1420,6 +1420,7 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
 	// initialize direntry
 	new_direntry->od_ino = entry_ino;
 	memcpy(new_direntry->od_name, dentry->d_name.name, dentry->d_name.len);
+	memset(new_direntry->od_name + dentry->d_name.len, 0, 1);
 
 	// initialize inode
 	new_ino->oi_size = 0;
