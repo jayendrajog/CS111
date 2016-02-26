@@ -555,9 +555,9 @@ ospfs_unlink(struct inode *dirino, struct dentry *dentry)
 
 	od->od_ino = 0;
 	oi->oi_nlink--;
-	
-	//delete non symbolic links that have nlink = 0
-	if(oi->oi_nlink == 0 && oi->oi_ftype != OSPFS_FTYPE_SYMLINK)
+
+	// delete non symbolic links that have nlink = 0
+	if (oi->oi_nlink == 0 && oi->oi_ftype != OSPFS_FTYPE_SYMLINK)
 		return change_size(oi, 0);
 
 	return 0;
@@ -601,7 +601,7 @@ allocate_block(void)
 
 	bitmap_block_addr = ospfs_block(2);	// "free bitmap block" starts at 2
 	nblocks = ospfs_super->os_nblocks;
-	block_num = 2;				// starts at 2
+	block_num = ospfs_super->os_firstinob + ospfs_super->os_ninodes;
 
 	for (; block_num < nblocks; block_num++) {
 		if (bitvector_test(bitmap_block_addr, block_num)) {
@@ -638,10 +638,10 @@ free_block(uint32_t blockno)
 	bitmap_block_addr = ospfs_block(2);	// "free bitmap block" starts at 2
 
 	if (blockno < (ospfs_super->os_firstinob + ospfs_super->os_ninodes)) {
-		eprintk(KERN_ALERT, "Attempting to free privilege (non-data) block!\n");
+		eprintk("Attempting to free privilege (non-data) block!\n");
 		return;
 	} else if (blockno >= ospfs_super->os_nblocks) {
-		eprintk(KERN_ALERT, "Attempting to free non-existing block!\n");
+		eprintk("Attempting to free non-existing block!\n");
 		return;
 	} else { // TODO: check that block is already free?
 		bitvector_set(bitmap_block_addr, blockno);
@@ -1373,6 +1373,7 @@ ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dent
 
 	new_direntry->od_ino = src_dentry->d_inode->i_ino;
 	memcpy(new_direntry->od_name, dst_dentry->d_name.name, dst_dentry->d_name.len);
+	memset(new_direntry->od_name + dst_dentry->d_name.len, 0, 1);
 
 	old_ino = ospfs_inode(new_direntry->od_ino);
 	old_ino->oi_nlink++;
@@ -1417,7 +1418,7 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
 	//return -EINVAL; // Replace this line
 
 	uint32_t inode_no;
-	ospfs_inode_t * new_ino;
+	ospfs_inode_t * new_ino = 0;
 	ospfs_direntry_t * new_direntry;
 
 	if (dentry->d_name.len > OSPFS_MAXNAMELEN)
@@ -1428,6 +1429,8 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
 
 	for (inode_no = 2; inode_no < ospfs_super->os_ninodes; inode_no++) {
 		new_ino = ospfs_inode(inode_no);
+		if (!new_ino)
+			return -EIO;
 		if (new_ino->oi_nlink == 0) {
 			entry_ino = inode_no;
 			break;
@@ -1498,17 +1501,13 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	ospfs_inode_t *dir_oi = ospfs_inode(dir->i_ino);
 	uint32_t entry_ino = 0;
 	int symname_len = 0;
-	ospfs_symlink_inode_t * new_ino;
-	ospfs_direntry_t * new_direntry;
-	ospfs_direntry_t * old_file_direntry;
-	ospfs_inode_t * old_ino;
+	ospfs_symlink_inode_t * new_ino = 0;
+	ospfs_direntry_t * new_direntry;	
 
 	/* EXERCISE: Your code here. */
 	//return -EINVAL;
 
-	//essentially the same as doing symname_len = strlen(symname)
-	while (*(symname++) != 0)
-		symname_len++;
+	symname_len = strlen(symname);
 
 	if (dentry->d_name.len > OSPFS_MAXNAMELEN || symname_len > OSPFS_MAXSYMLINKLEN)
 		return -ENAMETOOLONG;
@@ -1519,6 +1518,8 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	// find new inode (and cast it to symlink inode)
 	for (entry_ino = 2; entry_ino < ospfs_super->os_ninodes; entry_ino++) {
 		new_ino = (ospfs_symlink_inode_t *) ospfs_inode(entry_ino);
+		if (!new_ino)
+			return -EIO;
 		if (new_ino->oi_nlink == 0)
 			break;
 	}
@@ -1534,17 +1535,14 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	// initialize new direntry
 	new_direntry->od_ino = entry_ino;
 	memcpy(new_direntry->od_name, dentry->d_name.name, dentry->d_name.len);
-
-	// get original file's inode
-	old_file_direntry = find_direntry(dir_oi, symname - symname_len - 1, symname_len);
-	old_ino = ospfs_inode(old_file_direntry->od_ino);
+	memset(new_direntry->od_name + dentry->d_name.len, 0, 1);
 	
 	// initialize symlink inode
 	new_ino->oi_size = symname_len;
 	new_ino->oi_ftype = OSPFS_FTYPE_SYMLINK;
-	new_ino->oi_nlink = old_ino->oi_nlink;
-//	new_ino->oi_nlink = 1;
-	memcpy(new_ino->oi_symlink, symname - symname_len - 1, symname_len);
+	new_ino->oi_nlink = 1;
+	memcpy(new_ino->oi_symlink, symname, symname_len);
+	memset(new_ino->oi_symlink + symname_len, 0, 1);
 
 	/* Execute this code after your function has successfully created the
 	   file.  Set entry_ino to the created file's inode number before
