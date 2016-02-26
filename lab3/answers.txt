@@ -11,14 +11,14 @@
 # information you'd like us to know, please add it at the end of the file.
 
 # Partner 1
-Name: 
-Student ID: 
-Email: 
+Name: Jayendra Jog 
+Student ID: 904437296
+Email: jayendra@ucla.edu
 
 # Partner 2 (if you're working in a team)
-Name: 
-Student ID: 
-Email: 
+Name: Yu-Kuan (Anthony) Lai
+Student ID: 004445644
+Email: yukuan.anthony.lai@gmail.com
 
 # Extra credit problems
 #Extra credit problem: none
