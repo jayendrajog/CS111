@@ -18,6 +18,10 @@ build () {
     echo
     echo "*** ospfs.ko built successfully.  Now loading module."
     insmod ospfs.ko
+	#Magic code for design problem that our TA Tuan figured out
+    mknod /dev/ospfs b 224 1 || exit
+    chmod 666 /dev/ospfs
+	#End magic code
     if [ ! -e test ]; then
 	echo "*** Creating test directory."
 	mkdir test

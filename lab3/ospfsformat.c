@@ -283,6 +283,8 @@ opendisk(const char *name)
 		fprintf(stderr, "\n");
 		abort();
 	}
+	
+//	ioctl(diskfd, CRASH_TEST, 10);
 
 	if ((r = ftruncate(diskfd, 0)) < 0
 	    || (r = ftruncate(diskfd, nblocks * OSPFS_BLKSIZE)) < 0) {

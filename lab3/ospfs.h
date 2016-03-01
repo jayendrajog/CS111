@@ -193,4 +193,7 @@ typedef struct ospfs_direntry {
 	char od_name[OSPFS_MAXNAMELEN + 1];	// File name
 } ospfs_direntry_t;
 
+#define CRASH_TEST 10
+
+
 #endif
