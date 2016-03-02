@@ -90,6 +90,9 @@ typedef struct ospfs_super {
 #define OSPFS_INODESIZE		64
 #define OSPFS_BLKINODES		(OSPFS_BLKSIZE / OSPFS_INODESIZE)
 
+//For the design problem
+#define CRASH_TEST 4
+
 // Number of direct block pointers in 'struct ospfs_inode'.
 #define OSPFS_NDIRECT		10
 // Number of block pointers in an indirect block.

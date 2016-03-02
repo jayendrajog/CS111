@@ -43,6 +43,7 @@ static ospfs_super_t * const ospfs_super =
 static int change_size(ospfs_inode_t *oi, uint32_t want_size);
 static ospfs_direntry_t *find_direntry(ospfs_inode_t *dir_oi, const char *name, int namelen);
 
+int nwrites_to_crash = -1;
 
 /*****************************************************************************
  * FILE SYSTEM OPERATIONS STRUCTURES
@@ -89,7 +90,15 @@ static struct inode_operations ospfs_symlink_inode_ops;
 static struct dentry_operations ospfs_dentry_ops;
 static struct super_operations ospfs_superblock_ops;
 
+int can_write()
+{
+//	eprintk("nwrites is %d\n", nwrites_to_crash);
+	if(nwrites_to_crash == -1) return 1;
+	if(nwrites_to_crash == 0) return 0;
+	nwrites_to_crash--;
 
+	return 1;
+}
 
 /*****************************************************************************
  * BITVECTOR OPERATIONS
@@ -348,6 +357,7 @@ ospfs_delete_dentry(struct dentry *dentry)
 static struct dentry *
 ospfs_dir_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *ignore)
 {
+//	eprintk("ospfsdirlookup getting called\n");
 	// Find the OSPFS inode corresponding to 'dir'
 	ospfs_inode_t *dir_oi = ospfs_inode(dir->i_ino);
 	struct inode *entry_inode = NULL;
@@ -423,6 +433,7 @@ ospfs_dir_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *ign
 static int
 ospfs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
+//	eprintk("readdir getting called\n");
 	struct inode *dir_inode = filp->f_dentry->d_inode;
 	ospfs_inode_t *dir_oi = ospfs_inode(dir_inode->i_ino);
 	uint32_t f_pos = filp->f_pos;
@@ -533,6 +544,9 @@ ospfs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 static int
 ospfs_unlink(struct inode *dirino, struct dentry *dentry)
 {
+//	eprintk("unlink getting called\n");
+	if(!can_write())
+		return 0;
 	ospfs_inode_t *oi = ospfs_inode(dentry->d_inode->i_ino);
 	ospfs_inode_t *dir_oi = ospfs_inode(dentry->d_parent->d_inode->i_ino);
 	int entry_off;
@@ -593,7 +607,7 @@ allocate_block(void)
 {
 	/* EXERCISE: Your code here */
 	//return 0;
-
+//	eprintk("allocateblock getting called\n");
 	void * bitmap_block_addr;	// address of the first bitmap block
 	uint32_t nblocks;		// number of blocks on disk
 	uint32_t block_num;		// the block number we allocated
@@ -633,7 +647,7 @@ static void
 free_block(uint32_t blockno)
 {
 	/* EXERCISE: Your code here */
-
+//	eprintk("freeblock getting called");
 	void * bitmap_block_addr;		// address of the first bitmap block
 	bitmap_block_addr = ospfs_block(2);	// "free bitmap block" starts at 2
 
@@ -769,6 +783,7 @@ direct_index(uint32_t b)
 static int
 add_block(ospfs_inode_t *oi)
 {
+//	eprintk("addblock getting called\n");
 	// current number of blocks in file
 	uint32_t n = ospfs_size2nblocks(oi->oi_size);
 
@@ -883,6 +898,7 @@ add_block(ospfs_inode_t *oi)
 static int
 remove_block(ospfs_inode_t *oi)
 {
+//	eprintk("removeblock getting called");
 	// current number of blocks in file
 	uint32_t n = ospfs_size2nblocks(oi->oi_size);
 	uint32_t nth = n - 1;
@@ -990,6 +1006,7 @@ remove_block(ospfs_inode_t *oi)
 static int
 change_size(ospfs_inode_t *oi, uint32_t new_size)
 {
+//	eprintk("changesize getting called\n");
 	uint32_t old_size = oi->oi_size;
 	int r = 0;
 	int addCount = 0;
@@ -1041,6 +1058,7 @@ change_size(ospfs_inode_t *oi, uint32_t new_size)
 static int
 ospfs_notify_change(struct dentry *dentry, struct iattr *attr)
 {
+	
 	struct inode *inode = dentry->d_inode;
 	ospfs_inode_t *oi = ospfs_inode(inode->i_ino);
 	int retval = 0;
@@ -1162,6 +1180,9 @@ ospfs_read(struct file *filp, char __user *buffer, size_t count, loff_t *f_pos)
 static ssize_t
 ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *f_pos)
 {
+//	eprintk("write getting called\n");
+	if(!can_write())
+		return count;
 	ospfs_inode_t *oi = ospfs_inode(filp->f_dentry->d_inode->i_ino);
 	int retval = 0;
 	size_t amount = 0;
@@ -1356,7 +1377,9 @@ static int
 ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dentry) {
 	/* EXERCISE: Your code here. */
 	//return -EINVAL;
-
+//	eprintk("hardlink getting called\n");
+	if(!can_write()) 
+		return 0;
 	ospfs_inode_t * dir_oi = ospfs_inode(dir->i_ino);
 	ospfs_direntry_t * new_direntry;
 	ospfs_inode_t * old_ino;	// pointer to the actual file's inode
@@ -1412,6 +1435,8 @@ ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dent
 static int
 ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidata *nd)
 {
+	//eprintk("create getting called\n");
+//	if(!can_write()) return 0;
 	ospfs_inode_t *dir_oi = ospfs_inode(dir->i_ino);
 	uint32_t entry_ino = 0;
 	/* EXERCISE: Your code here. */
@@ -1498,6 +1523,8 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
 static int
 ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 {
+	//eprintk("symlink getting called\n");
+	if(!can_write()) return 0;
 	ospfs_inode_t *dir_oi = ospfs_inode(dir->i_ino);
 	uint32_t entry_ino = 0;
 	int symname_len = 0;
@@ -1581,6 +1608,16 @@ ospfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	return (void *) 0;
 }
 
+int ospfs_ioctl(struct inode * inode, struct file *filp, unsigned int cmd, int arg)
+{
+	if(cmd == CRASH_TEST)
+	{
+		nwrites_to_crash = arg;
+		eprintk("* value of arg is %d\n", nwrites_to_crash);
+		return 1;
+	}
+	return -1;
+}
 
 // Define the file system operations structures mentioned above.
 
@@ -1598,7 +1635,8 @@ static struct inode_operations ospfs_reg_inode_ops = {
 static struct file_operations ospfs_reg_file_ops = {
 	.llseek		= generic_file_llseek,
 	.read		= ospfs_read,
-	.write		= ospfs_write
+	.write		= ospfs_write,
+	.ioctl		= ospfs_ioctl
 };
 
 static struct inode_operations ospfs_dir_inode_ops = {
