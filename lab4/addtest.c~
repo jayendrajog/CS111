@@ -2,26 +2,20 @@
 #include <time.h> //clock_gettime
 #include <pthread.h> //threads
 
-void add(void * input)
+void add(long long *pointer, long long value)
 {
-	long long sum = *(input.pointer) + input.value;
-	*(input.pointer) = sum;
+	long long sum = *pointer + value;
+	*pointer = sum;
 }
-
-typedef struct
-{
-	long long *counter;
-	long long value;
-} 
-input;
 
 int main(int argc, char *argv[])
 {
 	//default values
 	int num_threads = 1;
 	int num_iters = 1;
-	long long *counter = malloc(sizeof(long long));	
+	long long counter;	
 	struct timespec start; //for clock_gettime
+
 	//input handling
 	if(!argc)
 	{
@@ -51,37 +45,14 @@ int main(int argc, char *argv[])
 			num_iters = getval(argv[2]);
 	}
 
-//	printf("Threads are %d\n Iterations are %d\n", num_threads, num_iters);	
+	printf("Threads are %d\n Iterations are %d\n", num_threads, num_iters);	
 	
 	//initializes a counter to 0
-	*counter = 0;
+	counter = 0;
 	
 	//notes the high resolution starting time for the run
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	
-	//start threads
-	pthread_t * threads = malloc(nthreads * sizeof(pthread_t));
-	input * inputs = malloc(nthreads * sizeof(input));
-	int thread_index = 0;
-	int error_check;
-	for(; thread_index < num_threads; thread_index++)
-	{
-		input[thread_index].counter = counter;
-		input[thread_index].value = 1;
-		error_check = pthread_create(&threads[thread_index], NULL, add, (void*) &input[thread_index]);
-		if(error_check)
-		{
-			printf("Error in creating thread\n");
-			return 1;
-		}
-	}
-	for(thread_input = 0; thread_input < num_threads; thread_input++)
-	{
-		pthread_join(threads[thread_input], NULL);
-	}
-	
 }
-
 
 int getval(char* arg)
 {
