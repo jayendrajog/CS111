@@ -17,6 +17,7 @@ echo "6. overwriting in symbolic linked files"
 echo "damn daniel 2" > test/d
 
 
+
 ./design -1
 
 echo "a could be haha or damn daniel"
@@ -27,3 +28,5 @@ echo "c could be damn daniel"
 cat test/c
 echo "d could be damn daniel 2"
 cat test/d
+echo "removing e"
+
