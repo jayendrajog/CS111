@@ -35,3 +35,36 @@ int SortedList_delete(SortedListElement_t *element) {
 	free(element);
 	return 0;
 }
+
+SortedListElement_t *SortedList_lookup(SortedList_t *list, const char *key) {
+	SortedListElement_t *n = list->next;
+	while (n != list) {
+		if (strcmp(n->key, key) == 0)
+			break;
+		n = n->next;
+	}
+	
+	if (n != list)
+		return n;
+	else
+		return NULL;
+}
+
+int SortedList_length(SortedList_t *list) {
+	SortedListElement_t *element = list->next;
+	SortedListElement_t *n = element->next;
+	SortedListElement_t *p = element->prev;
+	int count = 0;
+
+	while (element != list) {
+		// check for corruption
+		if (n->prev != element || p->next != element)
+			return -1;
+		count++;
+		p = element;
+		element = n;
+		n = element->next;	
+	}
+	
+	return count;
+}
