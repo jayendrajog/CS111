@@ -1,85 +1,26 @@
 #include <stdio.h>
 #include <time.h> //clock_gettime
 #include <pthread.h> //threads
+#include <stdlib.h>
 
-void add(void * input)
+//initializes a counter to 0
+static long long counter = 0;
+static int num_iters = 1;
+static int num_threads = 1;
+
+void add(long long *pointer, long long value) {
+        long long sum = *pointer + value;
+        *pointer = sum;
+     //   printf("sum is %d\n", sum);
+    }
+
+void* fwrapper(void* arg)
 {
-	long long sum = *(input.pointer) + input.value;
-	*(input.pointer) = sum;
-}
-
-typedef struct
-{
-	long long *counter;
-	long long value;
-} 
-input;
-
-int main(int argc, char *argv[])
-{
-	//default values
-	int num_threads = 1;
-	int num_iters = 1;
-	long long *counter = malloc(sizeof(long long));	
-	struct timespec start; //for clock_gettime
-	//input handling
-	if(!argc)
-	{
-		printf("Missing input arg\n");
-		return 1;
-	}
-	if(argc > 3)
-	{
-		printf("Too many input arguments\n");
-		return 1;
-	}
-
-	//get parameters
-	if(argc >= 2)
-	{
-		if(check_for_thread(argv[1]))
-			num_threads = getval(argv[1]);
-		if(check_for_iter(argv[1]))
-			num_iters = getval(argv[1]);	
-	}
-	
-	if(argc == 3)
-	{
-		if(check_for_thread(argv[2]))
-			num_threads = getval(argv[2]);
-		if(check_for_iter(argv[2]))
-			num_iters = getval(argv[2]);
-	}
-
-//	printf("Threads are %d\n Iterations are %d\n", num_threads, num_iters);	
-	
-	//initializes a counter to 0
-	*counter = 0;
-	
-	//notes the high resolution starting time for the run
-	clock_gettime(CLOCK_MONOTONIC, &start);
-	
-	//start threads
-	pthread_t * threads = malloc(nthreads * sizeof(pthread_t));
-	input * inputs = malloc(nthreads * sizeof(input));
-	int thread_index = 0;
-	int error_check;
-	for(; thread_index < num_threads; thread_index++)
-	{
-		input[thread_index].counter = counter;
-		input[thread_index].value = 1;
-		error_check = pthread_create(&threads[thread_index], NULL, add, (void*) &input[thread_index]);
-		if(error_check)
-		{
-			printf("Error in creating thread\n");
-			return 1;
-		}
-	}
-	for(thread_input = 0; thread_input < num_threads; thread_input++)
-	{
-		pthread_join(threads[thread_input], NULL);
-	}
-	
+	int i; int j;
+	for( i = 0; i < num_iters; i++)
+		add(&counter, 1);
+	for( j = 0; j < num_iters; j++)
+		add(&counter, -1);
 }
 
 
@@ -113,3 +54,77 @@ int check_for_thread(char * arg)
 	//format should be '--threads'
 	return (arg[2] == 't' && arg[3] == 'h' && arg[4] == 'r' && arg[5] == 'e' && arg[6] == 'a' && arg[7] == 'd' && arg[8] == 's');
 }
+
+int main(int argc, char *argv[])
+{
+	
+	struct timespec start, end; //for clock_gettime
+	long time_difference;
+	long num_operations;
+	//input handling
+	if(!argc)
+	{
+		printf("Missing input arg\n");
+		return 1;
+	}
+	if(argc > 3)
+	{
+		printf("Too many input arguments\n");
+		return 1;
+	}
+
+	//get parameters
+	if(argc >= 2)
+	{
+		if(check_for_thread(argv[1]))
+			num_threads = getval(argv[1]);
+		if(check_for_iter(argv[1]))
+			num_iters = getval(argv[1]);	
+	}
+	
+	if(argc == 3)
+	{
+		if(check_for_thread(argv[2]))
+			num_threads = getval(argv[2]);
+		if(check_for_iter(argv[2]))
+			num_iters = getval(argv[2]);
+	}
+	num_operations = 2 * num_threads * num_iters;
+	
+//	printf("Threads are %d\n Iterations are %d\n", num_threads, num_iters);	
+	
+	
+
+	
+	//notes the high resolution starting time for the run
+	clock_gettime(CLOCK_REALTIME, &start);
+	
+	//start threads
+	pthread_t * threads = malloc(num_threads * sizeof(pthread_t));
+	
+	int thread_index = 0;
+	int error_check;
+	for(; thread_index < num_threads; thread_index++)
+	{
+		error_check = pthread_create(&threads[thread_index], NULL, fwrapper, NULL);
+		if(error_check)
+		{
+			printf("Error in creating thread\n");
+			return 1;
+		}
+	}
+	for(thread_index = 0; thread_index < num_threads; thread_index++)
+	{
+		pthread_join(threads[thread_index], NULL);
+	}
+	clock_gettime(CLOCK_REALTIME, &end);
+	time_difference = end.tv_nsec - start.tv_nsec;
+	printf("%d threads x %d iterations x (add + subtract) = %d operations\n", num_threads, num_iters, num_operations);
+	if(counter != 0)
+		printf("ERROR: final count = %d\n", counter);
+	printf("elapsed time: %d ns\n", time_difference);
+	printf("per operation: %d ns\n", time_difference/num_operations);
+	return 0;
+}
+
+
