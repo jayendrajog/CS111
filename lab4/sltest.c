@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <getopt.h>	// parse
+#include <time.h>
 #include "SortedList.h"
 
 enum OPTIONS {
@@ -35,6 +36,15 @@ int main(int argc, char *argv[])
 	int i;
 	//int j;
 	
+	// list head and elements
+	int list_n_elements;
+	SortedList_t *list_header;
+	SortedListElement_t **list_elements;
+	SortedListElement_t *list_ele;
+	char list_rand_key;
+
+	struct timespec time_start, time_end;
+	
 	while ((option = getopt_long(argc, argv, "", input_options, &option_index)) != -1) {
 		switch (option) {
 			case THREADS:
@@ -67,6 +77,35 @@ int main(int argc, char *argv[])
 				fprintf(stderr, "CRITICAL ERROR! SHOULD NEVER GET HERE!\n");
 		}
 	}
-	printf("Hello\n");
-	printf("n_threads is %i, n_iterations is %i\n", n_threads, n_iterations);
+	//printf("Hello\n");
+	//printf("n_threads is %i, n_iterations is %i\n", n_threads, n_iterations);
+	
+	// initialize empty list and elements
+	list_n_elements = n_threads * n_iterations;	// number of elements in list
+	list_header = malloc(sizeof(SortedList_t));	// header to list
+	list_elements = malloc(sizeof(SortedListElement_t *) * list_n_elements);	// array of SortedListElement_t pointers	
+	if (!list_header || !list_elements) {
+		free(list_header);
+		free(list_elements);
+		exit(1);
+	}
+	list_header->prev = NULL;
+	list_header->next = NULL;
+	list_header->key = NULL;
+
+	srand(time(NULL));	// initialize random seed
+	for (i = 0; i < list_n_elements; i++) {
+		list_ele = malloc(sizeof(SortedListElement_t));	// TODO: check list_ele != NULL
+		list_rand_key = (char) rand();
+		list_ele->key = &list_rand_key;	// TODO: I'm not sure if we need to malloc for key
+		list_elements[i] = list_ele;
+	}
+
+
+	// start the timer
+	clock_gettime(CLOCK_REALTIME, &time_start);
+
+
+
+	clock_gettime(CLOCK_REALTIME, &time_end);
 }
