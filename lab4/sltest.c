@@ -12,12 +12,45 @@ enum OPTIONS {
 };
 
 typedef struct pthread_package {
-	SortedList_t * head;
-	SortedListElement_t ** elements;
+	int nElements;				// number of elements to operate on (iterations)
+	SortedList_t * head;			// header of the list
+	SortedListElement_t ** elements;	// the address of the first element to operate on
 } pthread_package_t;
 
 void *pthread_task(void *arg) {
 	printf("I am a thread\n");
+	pthread_package_t *myArg = (pthread_package_t *) arg;
+	int i, length;
+	// if we create an array we could potentially run into problem
+	// it is possible that there are duplicates...and when we are looking up, it will return the same address
+	// and it will create problems when deleting
+	//SortedListElement_t ** foundElements = malloc(sizeof(SortedListElement_t *) * myArg->nElements);
+	SortedListElement_t * foundElement;
+
+	// insert each element into the list
+	for (i = 0; i < myArg->nElements; i++)
+		SortedList_insert(myArg->head, myArg->elements[i]);
+
+	// gets the list length
+	length = SortedList_length(myArg->head);
+	printf("I see length of %d\n", length);
+
+	// look up each of the keys it inserted
+	// deletes each returned element from the list
+	for (i = 0; i < myArg->nElements; i++) {
+		foundElement = SortedList_lookup(myArg->head, (myArg->elements[i])->key);
+		SortedList_delete(foundElement);
+	}
+	
+	// deletes each returned element from the list
+	/*(for (i = 0; i < myArg->nElements; i++) {
+		if (SortedList_delete(foundElements[i]))
+			printf("Fail this deletion\n");
+		printf("Deleting...\n");
+	}
+	length = SortedList_length(myArg->head);
+	printf("I see length of %d\n", length);
+	*/
 }
 
 int main(int argc, char *argv[])
@@ -53,6 +86,7 @@ int main(int argc, char *argv[])
 	SortedListElement_t *list_ele;
 	char list_rand_key;
 	pthread_package_t * pthread_arg;
+	int list_length;
 
 	// multithreading
 	struct timespec time_start, time_end;
@@ -89,7 +123,7 @@ int main(int argc, char *argv[])
 				}
 				break;
 			default:
-				fprintf(stderr, "CRITICAL ERROR! SHOULD NEVER GET HERE!\n");
+				;
 		}
 	}
 	//printf("Hello\n");
@@ -111,23 +145,20 @@ int main(int argc, char *argv[])
 	srand(time(NULL));	// initialize random seed
 	for (i = 0; i < list_n_elements; i++) {
 		list_ele = malloc(sizeof(SortedListElement_t));	// TODO: check list_ele != NULL
-		list_rand_key = (char) rand();
+		list_rand_key = (char) rand();	// TODO: doesn't seem that random (all k's and K's)
 		list_ele->key = &list_rand_key;	// TODO: I'm not sure if we need to malloc for key
 		list_elements[i] = list_ele;
 	}
 
-	// prepare pthread package argument (structure) to be used for helper function
-	//pthread_arg.head = list_header;
-	//pthread_arg.elements = list_elements;
-	
-	// start the timer
+	// start the timer	
 	clock_gettime(CLOCK_REALTIME, &time_start);
 
 	tid = malloc(sizeof(pthread_t) * n_threads);
 	for (i = 0; i < n_threads; i++) {
 		pthread_arg = malloc(sizeof(pthread_package_t));	// TODO: check malloc
+		pthread_arg->nElements = n_iterations;
 		pthread_arg->head = list_header;
-		pthread_arg->elements = list_elements;
+		pthread_arg->elements = &(list_elements[i*n_iterations]);	// where it should start
 		ret = pthread_create(&tid[i], NULL, pthread_task, (void *) pthread_arg);
 		// TODO: error checking on ret
 	}
@@ -139,5 +170,9 @@ int main(int argc, char *argv[])
 
 	clock_gettime(CLOCK_REALTIME, &time_end);
 
+	list_length = SortedList_length(list_header);
+	if (list_length)
+		fprintf(stderr, "List length is not 0! It's %d\n", list_length);
+	
 	printf("End of main\n");
 }
