@@ -28,6 +28,9 @@ void SortedList_insert(SortedList_t *list, SortedListElement_t *element) {
 }
 
 int SortedList_delete(SortedListElement_t *element) {
+	if (!element)
+		return -1;
+
 	SortedListElement_t *n = element->next;
 	SortedListElement_t *p = element->prev;
 
