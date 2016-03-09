@@ -27,11 +27,13 @@ int main(int argc, char *argv[])
 	int n_iterations = 1;
 	
 	// yield option
-	int yie_count = 0;
-	int yie_index;
-	int yie_insert = 0;	// false
-	int yie_delete = 0;
-	int yie_search = 0;
+	int yield_insert = 0;	// false
+	int yield_delete = 0;
+	int yield_search = 0;
+	char c;
+
+	int i;
+	//int j;
 	
 	while ((option = getopt_long(argc, argv, "", input_options, &option_index)) != -1) {
 		switch (option) {
@@ -42,12 +44,27 @@ int main(int argc, char *argv[])
 				n_iterations = strtol(argv[optind-1]+13, NULL, 10);	// 13 for length of --iterations
 				break;
 			case YIELD:
-				// count number of arguments after --yield
-				//yie_index = optind - 1;
-				//while (yie_index < argc) {
-				//	if (argv[yie_index][0] == '-' &&
-				//}
+				// get arguments of yield
+				for (i = 8; i < 11; i++) {	// 8 for length of --yield
+					if (!(c = argv[optind-1][i]))
+						break;
+					switch (c) {
+						case 'i':
+							yield_insert = 1;
+							break;
+						case 'd':
+							yield_delete = 1;
+							break;
+						case 's':
+							yield_search = 1;
+							break;
+						default:
+							fprintf(stderr, "Unrecognized --yield argument\n");
+					}
+				}
 				break;
+			default:
+				fprintf(stderr, "CRITICAL ERROR! SHOULD NEVER GET HERE!\n");
 		}
 	}
 	printf("Hello\n");
