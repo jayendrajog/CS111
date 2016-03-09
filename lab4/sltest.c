@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <getopt.h>	// parse
 #include <time.h>
+#include <pthread.h>
 #include "SortedList.h"
 
 enum OPTIONS {
@@ -9,6 +10,15 @@ enum OPTIONS {
 	ITERATIONS,
 	YIELD
 };
+
+typedef struct pthread_package {
+	SortedList_t * head;
+	SortedListElement_t ** elements;
+} pthread_package_t;
+
+void *pthread_task(void *arg) {
+	printf("I am a thread\n");
+}
 
 int main(int argc, char *argv[])
 {
@@ -42,8 +52,13 @@ int main(int argc, char *argv[])
 	SortedListElement_t **list_elements;
 	SortedListElement_t *list_ele;
 	char list_rand_key;
+	pthread_package_t * pthread_arg;
 
+	// multithreading
 	struct timespec time_start, time_end;
+	pthread_t *tid;	// thread ids
+	void *retVal;
+	int ret;
 	
 	while ((option = getopt_long(argc, argv, "", input_options, &option_index)) != -1) {
 		switch (option) {
@@ -101,11 +116,28 @@ int main(int argc, char *argv[])
 		list_elements[i] = list_ele;
 	}
 
-
+	// prepare pthread package argument (structure) to be used for helper function
+	//pthread_arg.head = list_header;
+	//pthread_arg.elements = list_elements;
+	
 	// start the timer
 	clock_gettime(CLOCK_REALTIME, &time_start);
 
+	tid = malloc(sizeof(pthread_t) * n_threads);
+	for (i = 0; i < n_threads; i++) {
+		pthread_arg = malloc(sizeof(pthread_package_t));	// TODO: check malloc
+		pthread_arg->head = list_header;
+		pthread_arg->elements = list_elements;
+		ret = pthread_create(&tid[i], NULL, pthread_task, (void *) pthread_arg);
+		// TODO: error checking on ret
+	}
 
+	for (i = 0; i < n_threads; i++) {
+		ret = pthread_join(tid[i], (void**) retVal);
+		// TODO: error checking on ret
+	}
 
 	clock_gettime(CLOCK_REALTIME, &time_end);
+
+	printf("End of main\n");
 }
