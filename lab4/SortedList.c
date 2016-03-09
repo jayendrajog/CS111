@@ -3,6 +3,14 @@
 #include "SortedList.h"
 
 void SortedList_insert(SortedList_t *list, SortedListElement_t *element) {
+	if (!list->next) {
+		list->next = element;
+		list->prev = element;
+		element->prev = list;
+		element->next = list;
+		return;
+	}
+
 	SortedListElement_t *p = list;
 	SortedListElement_t *n = list->next;
 
