@@ -14,13 +14,52 @@ static int num_iters = 1;
 static int num_threads = 1;
 static int sync_option = 0;
 int opt_yield = 0;
+static pthread_mutex_t lock;
+volatile static int lock_m = 0;
 
 void add(long long *pointer, long long value) {
-        long long sum = *pointer + value;
-        if(opt_yield)
-        	pthread_yield();
-        *pointer = sum;
-    }
+		long long sum;
+		long long  orig;
+		switch(sync_option)
+		{
+			case 1:
+				//mutex
+				pthread_mutex_lock(&lock);
+				sum = *pointer + value;
+				 if(opt_yield)
+		        	pthread_yield();
+				*pointer = sum;
+				pthread_mutex_unlock(&lock);
+				return;
+			case 2:
+				//spin-lock
+				while(__sync_lock_test_and_set(&lock_m,1))
+				continue;
+				sum = *pointer + value;
+				if(opt_yield)
+		        	pthread_yield();
+				*pointer = sum;
+				__sync_lock_release(&lock_m);
+				return;
+			case 3:
+				do
+				{
+					orig = *pointer;
+					sum = orig + value;
+					if(opt_yield)
+		        		pthread_yield();
+				}
+				while(__sync_val_compare_and_swap(pointer, orig, sum) != orig);
+				return;
+			default:
+				//default
+				sum = *pointer + value;
+		        if(opt_yield)
+		        	pthread_yield();
+		        *pointer = sum;
+				return;
+		}
+}
 
 void* fwrapper(void* arg)
 {
@@ -127,7 +166,7 @@ int main(int argc, char *argv[])
 {
 	
 	struct timespec start, end; //for clock_gettime
-	long time_difference;
+	long long time_difference;
 	long num_operations;
 	//input handling
 	if(!argc)
@@ -135,7 +174,7 @@ int main(int argc, char *argv[])
 		printf("Missing input arg\n");
 		return 1;
 	}
-	if(argc > 4)
+	if(argc > 5)
 	{
 		printf("Too many input arguments\n");
 		return 1;
@@ -145,92 +184,21 @@ int main(int argc, char *argv[])
 	if(argc >= 2)
 	{
 		if(parameter_check(argv, 1)) return 1;
-	// 	if(check_for_thread(argv[1]))
-	// 		num_threads = getval(argv[1]);
-	// 	if(check_for_iter(argv[1]))
-	// 		num_iters = getval(argv[1]);
-	// 	if(check_for_yield(argv[1]))
-	// 	{
-	// 		if(getval(argv[1]) == 0)
-	// 			opt_yield = 0;
-	// 		if(getval(argv[1]) == 1)
-	// 			opt_yield = 1;
-	// 		else 
-	// 		{
-	// 			printf("ERROR: invalid input for yield");
-	// 			return 1;
-	// 		}
-
-	// 	}
-	// 	if(check_for_sync(argv[1]))
-	// 	{
-	// 		int index = 1;
-	// 		//iterate to the '='
-	// 		while(argv[1][index] != '\0' && argv[1][index-1] != '=')
-	// 		{
-	// 			index++;
-	// 		}
-	// 		if(argv[1][index] != '\0')
-	// 		{
-	// 			if(argv[1][index] == 'm')
-	// 				sync_option = P_MUTEX;
-	// 			else if (argv[1][index] == 's')
-	// 				sync_option = S_LOCK;
-	// 			else if (argv[1][index] == 'c')
-	// 				sync_option = S_ATOMIC;
-	// 			else
-	// 				printf("ERROR: invalid input for sync");
-	// 		}
-	// 		else 
-	// 		{
-	// 			printf("ERROR: invalid input for sync");
-	// 			return 1;
-	// 		}
-	// 	}	
 	}
 	
 	if(argc >= 3)
 	{
 		if(parameter_check(argv, 2)) return 1;
-		// if(check_for_thread(argv[2]))
-		// 	num_threads = getval(argv[2]);
-		// if(check_for_iter(argv[2]))
-		// 	num_iters = getval(argv[2]);
-		// if(check_for_yield(argv[2]))
-		// {
-		// 	if(getval(argv[2]) == 0)
-		// 		opt_yield = 0;
-		// 	if(getval(argv[2]) == 1)
-		// 		opt_yield = 1;
-		// 	else 
-		// 	{
-		// 		printf("ERROR: invalid input for yield");
-		// 		return 1;
-		// 	}
-
-		// }	
 	}
 
-	if(argc == 4)
+	if(argc >= 4)
 	{
 		if(parameter_check(argv, 3)) return 1;
-		// if(check_for_thread(argv[3]))
-		// 	num_threads = getval(argv[3]);
-		// if(check_for_iter(argv[3]))
-		// 	num_iters = getval(argv[3]);
-		// if(check_for_yield(argv[3]))
-		// {
-		// 	if(getval(argv[3]) == 0)
-		// 		opt_yield = 0;
-		// 	if(getval(argv[3]) == 1)
-		// 		opt_yield = 1;
-		// 	else 
-		// 	{
-		// 		printf("ERROR: invalid input for yield");
-		// 		return 1;
-		// 	}
+	}
 
-		// }	
+	if(argc >= 5)
+	{
+		if(parameter_check(argv, 4)) return 1;
 	}
 	num_operations = 2 * num_threads * num_iters;
 	
@@ -240,7 +208,7 @@ int main(int argc, char *argv[])
 
 	
 	//notes the high resolution starting time for the run
-	clock_gettime(CLOCK_REALTIME, &start);
+	clock_gettime(CLOCK_MONOTONIC, &start);
 	
 	//start threads
 	pthread_t * threads = malloc(num_threads * sizeof(pthread_t));
@@ -260,13 +228,12 @@ int main(int argc, char *argv[])
 	{
 		pthread_join(threads[thread_index], NULL);
 	}
-	clock_gettime(CLOCK_REALTIME, &end);
-	time_difference = end.tv_nsec - start.tv_nsec;
+	clock_gettime(CLOCK_MONOTONIC, &end);
 	printf("%d threads x %d iterations x (add + subtract) = %d operations\n", num_threads, num_iters, num_operations);
 	if(counter != 0)
-		printf("ERROR: final count = %d\n", counter);
-	printf("elapsed time: %d ns\n", time_difference);
-	printf("per operation: %d ns\n", time_difference/num_operations);
+		printf("ERROR: final count = %lld\n", counter);
+	printf("elapsed time: %lld ns\n", end.tv_nsec - start.tv_nsec);
+	printf("per operation: %lld ns\n", (end.tv_nsec - start.tv_nsec)/num_operations);
 	return 0;
 }
 
