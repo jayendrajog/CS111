@@ -5,6 +5,8 @@
 #include <pthread.h>
 #include "SortedList.h"
 
+int opt_yield;
+
 enum OPTIONS {
 	THREADS,
 	ITERATIONS,
@@ -71,11 +73,11 @@ int main(int argc, char *argv[])
 	int n_iterations = 1;
 	
 	// yield option
-	int yield_insert = 0;	// false
-	int yield_delete = 0;
-	int yield_search = 0;
+	//int yield_insert = 0;	// false
+	//int yield_delete = 0;
+	//int yield_search = 0;
 	char c;
-
+	opt_yield = 0;
 	int i;
 	//int j;
 	
@@ -109,13 +111,13 @@ int main(int argc, char *argv[])
 						break;
 					switch (c) {
 						case 'i':
-							yield_insert = 1;
+							opt_yield |= INSERT_YIELD;
 							break;
 						case 'd':
-							yield_delete = 1;
+							opt_yield |= DELETE_YIELD;
 							break;
 						case 's':
-							yield_search = 1;
+							opt_yield |= SEARCH_YIELD;
 							break;
 						default:
 							fprintf(stderr, "Unrecognized --yield argument\n");

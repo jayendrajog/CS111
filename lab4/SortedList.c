@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "SortedList.h"
+#include <stdio.h>
+#include <pthread.h>
 
 void SortedList_insert(SortedList_t *list, SortedListElement_t *element) {
 	if (!list->next) {
@@ -21,6 +23,9 @@ void SortedList_insert(SortedList_t *list, SortedListElement_t *element) {
 		n = n->next;
 	}
 	
+	if (opt_yield & INSERT_YIELD)
+		pthread_yield();
+
 	element->prev = p;
 	element->next = n;
 	p->next = element;
@@ -39,6 +44,9 @@ int SortedList_delete(SortedListElement_t *element) {
 	if (p->next != element)
 		return 1;
 
+	if (opt_yield & DELETE_YIELD)
+		pthread_yield();
+
 	n->prev = p;
 	p->next = n;
 	element->next = NULL;
@@ -55,6 +63,9 @@ SortedListElement_t *SortedList_lookup(SortedList_t *list, const char *key) {
 		n = n->next;
 	}
 	
+	if (opt_yield & SEARCH_YIELD)
+		pthread_yield();
+
 	if (n != list)
 		return n;
 	else
@@ -76,6 +87,9 @@ int SortedList_length(SortedList_t *list) {
 		element = n;
 		n = element->next;	
 	}
-	
+
+	if (opt_yield & SEARCH_YIELD)
+		pthread_yield();
+
 	return count;
 }
