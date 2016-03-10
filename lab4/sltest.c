@@ -6,11 +6,15 @@
 #include "SortedList.h"
 
 int opt_yield;
+pthread_mutex_t lock;
+char lock_switch;
 
 enum OPTIONS {
 	THREADS,
 	ITERATIONS,
-	YIELD
+	YIELD,
+	SYNC,
+	LISTS
 };
 
 typedef struct pthread_package {
@@ -29,8 +33,13 @@ void *pthread_task(void *arg) {
 	SortedListElement_t * foundElement;
 
 	// insert each element into the list
-	for (i = 0; i < myArg->nElements; i++)
+	for (i = 0; i < myArg->nElements; i++) {
+		if (lock_switch == 'm')
+			pthread_mutex_lock(&lock);
 		SortedList_insert(myArg->head, myArg->elements[i]);
+		if (lock_switch == 'm')
+			pthread_mutex_unlock(&lock);
+	}
 
 	// gets the list length
 	//length = SortedList_length(myArg->head);
@@ -38,8 +47,12 @@ void *pthread_task(void *arg) {
 	// look up each of the keys it inserted
 	// deletes each returned element from the list
 	for (i = 0; i < myArg->nElements; i++) {
+		if (lock_switch == 'm')
+			pthread_mutex_lock(&lock);
 		foundElement = SortedList_lookup(myArg->head, (myArg->elements[i])->key);
 		SortedList_delete(foundElement);
+		if (lock_switch == 'm')
+			pthread_mutex_unlock(&lock);
 		//free(foundElement);
 		//foundElement = NULL;
 	}
@@ -51,6 +64,7 @@ int main(int argc, char *argv[])
 		{"threads", required_argument, 0, THREADS},
 		{"iterations", required_argument, 0, ITERATIONS},
 		{"yield", required_argument, 0, YIELD},
+		{"sync", required_argument, 0, SYNC},
 		{0,	0,	0,	0}
 	};
 	
@@ -83,6 +97,9 @@ int main(int argc, char *argv[])
 	void *retVal;
 	int ret;
 	long time_ns;
+
+	// locks
+	lock_switch = 'n';	// none (n), mutex (m), spin (s)
 	
 	while ((option = getopt_long(argc, argv, "", input_options, &option_index)) != -1) {
 		switch (option) {
@@ -112,6 +129,9 @@ int main(int argc, char *argv[])
 					}
 				}
 				break;
+			case SYNC:
+				lock_switch = argv[optind-1][7];
+				break;
 			default:
 				;
 		}
@@ -140,6 +160,14 @@ int main(int argc, char *argv[])
 		list_elements[i] = list_ele;
 	}
 
+	// initialize mutex lock
+	if (lock_switch == 'm') {
+		if (pthread_mutex_init(&lock, NULL)) {
+			printf("\n mutex init failed\n");
+			exit(1);	// TODO: cleanup
+		}
+	}
+
 	// start the timer	
 	clock_gettime(CLOCK_REALTIME, &time_start);
 
@@ -164,6 +192,9 @@ int main(int argc, char *argv[])
 	}
 
 	clock_gettime(CLOCK_REALTIME, &time_end);
+
+	// lots of cleanup to do
+	//pthread_mutex_destroy(&lock);
 
 	time_ns = (time_end.tv_sec - time_start.tv_sec) * 1000000000 + (time_end.tv_nsec - time_start.tv_nsec);
 
