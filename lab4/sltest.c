@@ -33,13 +33,15 @@ void *pthread_task(void *arg) {
 		SortedList_insert(myArg->head, myArg->elements[i]);
 
 	// gets the list length
-	length = SortedList_length(myArg->head);
+	//length = SortedList_length(myArg->head);
 
 	// look up each of the keys it inserted
 	// deletes each returned element from the list
 	for (i = 0; i < myArg->nElements; i++) {
 		foundElement = SortedList_lookup(myArg->head, (myArg->elements[i])->key);
 		SortedList_delete(foundElement);
+		//free(foundElement);
+		//foundElement = NULL;
 	}
 }
 
@@ -158,10 +160,18 @@ int main(int argc, char *argv[])
 
 	time_ns = (time_end.tv_sec - time_start.tv_sec) * 1000000000 + (time_end.tv_nsec - time_start.tv_nsec);
 
-	list_length = SortedList_length(list_header);
-	if (list_length)
-		fprintf(stderr, "List length is not 0! It's %d\n", list_length);
+	if (list_header) {
+		list_length = SortedList_length(list_header);
+		if (list_length)
+			fprintf(stderr, "List length is not 0! It's %d\n", list_length);
+	}
 	
 	//printf("End of main\n");
 	printf("elapsed time: %ld ns\n", time_ns);
+
+	// cleanup
+	for (i = 0; i < list_n_elements; i++) {
+		//free(list_elements[i]);
+		//list_elements[i] = NULL;
+	}
 }
