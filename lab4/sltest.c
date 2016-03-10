@@ -175,6 +175,7 @@ int main(int argc, char *argv[])
 	
 	//printf("End of main\n");
 	printf("elapsed time: %ld ns\n", time_ns);
+	printf("per operation: %d ns\n", time_ns / (n_iterations * n_threads));
 
 	// cleanup
 	for (i = 0; i < list_n_elements; i++) {
