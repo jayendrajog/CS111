@@ -133,6 +133,8 @@ int main(int argc, char *argv[])
 	srand(time(NULL));	// initialize random seed
 	for (i = 0; i < list_n_elements; i++) {
 		list_ele = malloc(sizeof(SortedListElement_t));	// TODO: check list_ele != NULL
+		if (!list_ele)	// TODO: cleanup
+			exit(1);
 		list_rand_key = (char) rand();	// TODO: doesn't seem that random (all k's and K's)
 		list_ele->key = &list_rand_key;	// TODO: I'm not sure if we need to malloc for key
 		list_elements[i] = list_ele;
@@ -142,8 +144,13 @@ int main(int argc, char *argv[])
 	clock_gettime(CLOCK_REALTIME, &time_start);
 
 	tid = malloc(sizeof(pthread_t) * n_threads);
+	if (!tid)	// TODO: cleanup
+		exit(1);
+
 	for (i = 0; i < n_threads; i++) {
 		pthread_arg = malloc(sizeof(pthread_package_t));	// TODO: check malloc
+		if (!pthread_arg)	// TODO: cleanup
+			exit(1);
 		pthread_arg->nElements = n_iterations;
 		pthread_arg->head = list_header;
 		pthread_arg->elements = &(list_elements[i*n_iterations]);	// where it should start
