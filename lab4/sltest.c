@@ -20,7 +20,6 @@ typedef struct pthread_package {
 } pthread_package_t;
 
 void *pthread_task(void *arg) {
-	printf("I am a thread\n");
 	pthread_package_t *myArg = (pthread_package_t *) arg;
 	int i, length;
 	// if we create an array we could potentially run into problem
@@ -35,7 +34,6 @@ void *pthread_task(void *arg) {
 
 	// gets the list length
 	length = SortedList_length(myArg->head);
-	printf("I see length of %d\n", length);
 
 	// look up each of the keys it inserted
 	// deletes each returned element from the list
@@ -43,16 +41,6 @@ void *pthread_task(void *arg) {
 		foundElement = SortedList_lookup(myArg->head, (myArg->elements[i])->key);
 		SortedList_delete(foundElement);
 	}
-	
-	// deletes each returned element from the list
-	/*(for (i = 0; i < myArg->nElements; i++) {
-		if (SortedList_delete(foundElements[i]))
-			printf("Fail this deletion\n");
-		printf("Deleting...\n");
-	}
-	length = SortedList_length(myArg->head);
-	printf("I see length of %d\n", length);
-	*/
 }
 
 int main(int argc, char *argv[])
@@ -73,9 +61,6 @@ int main(int argc, char *argv[])
 	int n_iterations = 1;
 	
 	// yield option
-	//int yield_insert = 0;	// false
-	//int yield_delete = 0;
-	//int yield_search = 0;
 	char c;
 	opt_yield = 0;
 	int i;
@@ -95,6 +80,7 @@ int main(int argc, char *argv[])
 	pthread_t *tid;	// thread ids
 	void *retVal;
 	int ret;
+	long time_ns;
 	
 	while ((option = getopt_long(argc, argv, "", input_options, &option_index)) != -1) {
 		switch (option) {
@@ -128,8 +114,6 @@ int main(int argc, char *argv[])
 				;
 		}
 	}
-	//printf("Hello\n");
-	//printf("n_threads is %i, n_iterations is %i\n", n_threads, n_iterations);
 	
 	// initialize empty list and elements
 	list_n_elements = n_threads * n_iterations;	// number of elements in list
@@ -172,9 +156,12 @@ int main(int argc, char *argv[])
 
 	clock_gettime(CLOCK_REALTIME, &time_end);
 
+	time_ns = (time_end.tv_sec - time_start.tv_sec) * 1000000000 + (time_end.tv_nsec - time_start.tv_nsec);
+
 	list_length = SortedList_length(list_header);
 	if (list_length)
 		fprintf(stderr, "List length is not 0! It's %d\n", list_length);
 	
-	printf("End of main\n");
+	//printf("End of main\n");
+	printf("elapsed time: %ld ns\n", time_ns);
 }
