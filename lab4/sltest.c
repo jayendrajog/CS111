@@ -27,92 +27,21 @@ typedef struct pthread_package {
 void *pthread_task(void *arg) {
 	pthread_package_t *myArg = (pthread_package_t *) arg;
 	int i, length;
-	// if we create an array we could potentially run into problem
-	// it is possible that there are duplicates...and when we are looking up, it will return the same address
-	// and it will create problems when deleting
-	//SortedListElement_t ** foundElements = malloc(sizeof(SortedListElement_t *) * myArg->nElements);
 	SortedListElement_t * foundElement;
-	/*
-	// insert each element into the list
-	for (i = 0; i < myArg->nElements; i++) {
-		if (lock_switch == 'm') {
-			//printf("mutex");
-			pthread_mutex_lock(&lock);
-		}
-		if (lock_switch == 's') {
-			//printf("spin lock");
-			while (1) {
-				if (&lock_s == NULL) {
-					printf("The f*ck??\n");
-					exit(1);
-				}
-				if (!(__sync_lock_test_and_set(&lock_s, 1)))
-					break;
-			}
-
-			//while(__sync_lock_test_and_set(&lock_s, 1))
-			//	continue;
-		}
-
-		SortedList_insert(myArg->head, myArg->elements[i]);
-
-		if (lock_switch == 'm')
-			pthread_mutex_unlock(&lock);
-		if (lock_switch == 's') {
-			//__sync_lock_release(&lock_s);
-			if (&lock_s == NULL) {
-				printf("Why...\n");
-				exit(1);
-			}
-			__sync_lock_release(&lock_s);
-		}
-	}
-
-	// TODO: uncomment this!
-	// gets the list length
-	//length = SortedList_length(myArg->head);
-
-	// look up each of the keys it inserted
-	// deletes each returned element from the list
-	for (i = 0; i < myArg->nElements; i++) {
-		if (lock_switch == 'm')
-			pthread_mutex_lock(&lock);
-		if (lock_switch == 's') {
-			//printf("spin lock");
-			while (1) {
-				if (&lock_s == NULL) {
-					printf("The f*ck??\n");
-					exit(1);
-				}
-				if (!(__sync_lock_test_and_set(&lock_s, 1)))
-					break;
-			}
-			//while(__sync_lock_test_and_set(&lock_s, 1))
-			//	continue;
-		}
-		
-		foundElement = SortedList_lookup(myArg->head, (myArg->elements[i])->key);
-		SortedList_delete(foundElement);
-		
-		if (lock_switch == 'm')
-			pthread_mutex_unlock(&lock);
-		if (lock_switch == 's') {
-			if (&lock_s == NULL) {
-				printf("Why...\n");
-				exit(1);
-			}
-			__sync_lock_release(&lock_s);
-		}
-		//free(foundElement);
-		//foundElement = NULL;
-	}*/
 
 	switch (lock_switch) {
 		case 'n':
 			for (i = 0; i < myArg->nElements; i++) {
+				// insert each element into the list
 				SortedList_insert(myArg->head, myArg->elements[i]);
 			}
+
+			// gets the list length
+			length = SortedList_length(myArg->head);
+
 			for (i = 0; i < myArg->nElements; i++) {
+				// look up each of the keys it inserted
+				// deletes each returned element from the list
 				foundElement = SortedList_lookup(myArg->head, (myArg->elements[i])->key);
 				SortedList_delete(foundElement);
 			}
@@ -125,7 +54,7 @@ void *pthread_task(void *arg) {
 				SortedList_insert(myArg->head, myArg->elements[i]);
 				__sync_lock_release(&lock_s);
 			}
-
+			length = SortedList_length(myArg->head);
 			for (i = 0; i < myArg->nElements; i++) {
 				while(__sync_lock_test_and_set(&lock_s, 1))
 					continue;
@@ -239,7 +168,7 @@ int main(int argc, char *argv[])
 		list_ele = malloc(sizeof(SortedListElement_t));	// TODO: check list_ele != NULL
 		if (!list_ele)	// TODO: cleanup
 			exit(1);
-		//list_rand_key = (char) rand();	// TODO: doesn't seem that random (all k's and K's)
+
 		list_rand_key = malloc(sizeof(char) * 8);
 		sprintf(list_rand_key, "%d", rand() % 99999999);
 		list_ele->key = list_rand_key;	// TODO: I'm not sure if we need to malloc for key
@@ -293,8 +222,9 @@ int main(int argc, char *argv[])
 	}
 	
 	//printf("End of main\n");
+	printf("%d threads x %d iterations x (ins + lookup/del) = %d operations\n", n_threads, n_iterations, (n_threads * n_iterations * 2));
 	printf("elapsed time: %ld ns\n", time_ns);
-	printf("per operation: %d ns\n", time_ns / (n_iterations * n_threads));
+	printf("per operation: %d ns\n", time_ns / (n_iterations * n_threads * 2));
 
 	// cleanup
 	for (i = 0; i < list_n_elements; i++) {
