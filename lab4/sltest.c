@@ -8,6 +8,7 @@
 int opt_yield;
 pthread_mutex_t lock;
 char lock_switch;
+volatile static int lock_s;	// spin lock
 
 enum OPTIONS {
 	THREADS,
@@ -36,9 +37,15 @@ void *pthread_task(void *arg) {
 	for (i = 0; i < myArg->nElements; i++) {
 		if (lock_switch == 'm')
 			pthread_mutex_lock(&lock);
+		if (lock_switch = 's')
+			while(__sync_lock_test_and_set(&lock_s, 1));
+
 		SortedList_insert(myArg->head, myArg->elements[i]);
+
 		if (lock_switch == 'm')
 			pthread_mutex_unlock(&lock);
+		if (lock_switch == 's')
+			__sync_lock_release(&lock_s);
 	}
 
 	// gets the list length
@@ -49,10 +56,16 @@ void *pthread_task(void *arg) {
 	for (i = 0; i < myArg->nElements; i++) {
 		if (lock_switch == 'm')
 			pthread_mutex_lock(&lock);
+		if (lock_switch = 's')
+			while(__sync_lock_test_and_set(&lock_s, 1));
+		
 		foundElement = SortedList_lookup(myArg->head, (myArg->elements[i])->key);
 		SortedList_delete(foundElement);
+		
 		if (lock_switch == 'm')
 			pthread_mutex_unlock(&lock);
+		if (lock_switch == 's')
+			__sync_lock_release(&lock_s);
 		//free(foundElement);
 		//foundElement = NULL;
 	}
@@ -100,7 +113,8 @@ int main(int argc, char *argv[])
 
 	// locks
 	lock_switch = 'n';	// none (n), mutex (m), spin (s)
-	
+	lock_s = 0;
+
 	while ((option = getopt_long(argc, argv, "", input_options, &option_index)) != -1) {
 		switch (option) {
 			case THREADS:
@@ -169,7 +183,7 @@ int main(int argc, char *argv[])
 	}
 
 	// start the timer	
-	clock_gettime(CLOCK_REALTIME, &time_start);
+	clock_gettime(CLOCK_MONOTONIC, &time_start);
 
 	tid = malloc(sizeof(pthread_t) * n_threads);
 	if (!tid)	// TODO: cleanup
@@ -191,7 +205,7 @@ int main(int argc, char *argv[])
 		// TODO: error checking on ret
 	}
 
-	clock_gettime(CLOCK_REALTIME, &time_end);
+	clock_gettime(CLOCK_MONOTONIC, &time_end);
 
 	// lots of cleanup to do
 	//pthread_mutex_destroy(&lock);
