@@ -170,7 +170,7 @@ int main(int argc, char *argv[])
 	SortedList_t *list_header;
 	SortedListElement_t **list_elements;
 	SortedListElement_t *list_ele;
-	char list_rand_key;
+	char * list_rand_key;
 	pthread_package_t * pthread_arg;
 	int list_length;
 
@@ -239,8 +239,10 @@ int main(int argc, char *argv[])
 		list_ele = malloc(sizeof(SortedListElement_t));	// TODO: check list_ele != NULL
 		if (!list_ele)	// TODO: cleanup
 			exit(1);
-		list_rand_key = (char) rand();	// TODO: doesn't seem that random (all k's and K's)
-		list_ele->key = &list_rand_key;	// TODO: I'm not sure if we need to malloc for key
+		//list_rand_key = (char) rand();	// TODO: doesn't seem that random (all k's and K's)
+		list_rand_key = malloc(sizeof(char) * 8);
+		sprintf(list_rand_key, "%d", rand() % 99999999);
+		list_ele->key = list_rand_key;	// TODO: I'm not sure if we need to malloc for key
 		list_elements[i] = list_ele;
 	}
 
