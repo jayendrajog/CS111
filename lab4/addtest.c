@@ -228,6 +228,9 @@ int main(int argc, char *argv[])
 	{
 		pthread_join(threads[thread_index], NULL);
 	}
+
+	free(threads);
+
 	clock_gettime(CLOCK_MONOTONIC, &end);
 	printf("%d threads x %d iterations x (add + subtract) = %d operations\n", num_threads, num_iters, num_operations);
 	if(counter != 0)
