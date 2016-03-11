@@ -218,12 +218,19 @@ int main(int argc, char *argv[])
 		pthread_arg->head = list_header;
 		pthread_arg->elements = &(list_elements[i*n_iterations]);	// where it should start
 		ret = pthread_create(&tid[i], NULL, pthread_task, (void *) pthread_arg);
-		// TODO: error checking on ret
+		if (ret) {
+			printf("Fail to create pthreads\n");	// TODO: cleanup
+			exit(1);
+		}
+			
 	}
 
 	for (i = 0; i < n_threads; i++) {
 		ret = pthread_join(tid[i], (void**) retVal);
-		// TODO: error checking on ret
+		if (ret) {
+			printf("Fail to join pthreads\n");	// TODO: cleanup
+			exit(1);
+		}
 	}
 
 	clock_gettime(CLOCK_MONOTONIC, &time_end);
