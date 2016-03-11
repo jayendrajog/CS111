@@ -64,6 +64,26 @@ void *pthread_task(void *arg) {
 			}
 			break;
 
+		case 'm':
+			for (i = 0; i < myArg->nElements; i++) {
+				// insert each element into the list
+				pthread_mutex_lock(&lock);
+				SortedList_insert(myArg->head, myArg->elements[i]);
+				pthread_mutex_unlock(&lock);
+			}
+
+			// gets the list length
+			length = SortedList_length(myArg->head);
+
+			for (i = 0; i < myArg->nElements; i++) {
+				// look up each of the keys it inserted
+				// deletes each returned element from the list
+				pthread_mutex_lock(&lock);
+				foundElement = SortedList_lookup(myArg->head, (myArg->elements[i])->key);
+				SortedList_delete(foundElement);
+				pthread_mutex_unlock(&lock);
+			}
+			break;
 		default:
 			fprintf(stderr, "unrecognized sync type\n");
 			exit(1);
@@ -218,7 +238,7 @@ int main(int argc, char *argv[])
 		if (list_length)
 			fprintf(stderr, "List length is not 0! It's %d\n", list_length);
 		//else
-		//	fprintf(stderr, "it's 0\n");
+			//fprintf(stderr, "it's 0\n");
 	}
 	
 	//printf("End of main\n");
