@@ -35,10 +35,15 @@ void *pthread_task(void *arg) {
 
 	// insert each element into the list
 	for (i = 0; i < myArg->nElements; i++) {
-		if (lock_switch == 'm')
+		if (lock_switch == 'm') {
+			//printf("mutex");
 			pthread_mutex_lock(&lock);
-		if (lock_switch = 's')
-			while(__sync_lock_test_and_set(&lock_s, 1));
+		}
+		if (lock_switch == 's') {
+			//printf("spin lock");
+			while(__sync_lock_test_and_set(&lock_s, 1))
+				continue;
+		}
 
 		SortedList_insert(myArg->head, myArg->elements[i]);
 
@@ -56,8 +61,11 @@ void *pthread_task(void *arg) {
 	for (i = 0; i < myArg->nElements; i++) {
 		if (lock_switch == 'm')
 			pthread_mutex_lock(&lock);
-		if (lock_switch = 's')
-			while(__sync_lock_test_and_set(&lock_s, 1));
+		if (lock_switch == 's') {
+			//printf("spin lock");
+			while(__sync_lock_test_and_set(&lock_s, 1))
+				continue;
+		}
 		
 		foundElement = SortedList_lookup(myArg->head, (myArg->elements[i])->key);
 		SortedList_delete(foundElement);
@@ -216,6 +224,8 @@ int main(int argc, char *argv[])
 		list_length = SortedList_length(list_header);
 		if (list_length)
 			fprintf(stderr, "List length is not 0! It's %d\n", list_length);
+		//else
+		//	fprintf(stderr, "it's 0\n");
 	}
 	
 	//printf("End of main\n");
