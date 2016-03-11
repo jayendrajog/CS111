@@ -8,7 +8,7 @@
 int opt_yield;
 pthread_mutex_t lock;
 char lock_switch;
-volatile static int lock_s;	// spin lock
+volatile static int lock_s = 0;	// spin lock
 
 enum OPTIONS {
 	THREADS,
@@ -32,7 +32,7 @@ void *pthread_task(void *arg) {
 	// and it will create problems when deleting
 	//SortedListElement_t ** foundElements = malloc(sizeof(SortedListElement_t *) * myArg->nElements);
 	SortedListElement_t * foundElement;
-
+	/*
 	// insert each element into the list
 	for (i = 0; i < myArg->nElements; i++) {
 		if (lock_switch == 'm') {
@@ -41,18 +41,34 @@ void *pthread_task(void *arg) {
 		}
 		if (lock_switch == 's') {
 			//printf("spin lock");
-			while(__sync_lock_test_and_set(&lock_s, 1))
-				continue;
+			while (1) {
+				if (&lock_s == NULL) {
+					printf("The f*ck??\n");
+					exit(1);
+				}
+				if (!(__sync_lock_test_and_set(&lock_s, 1)))
+					break;
+			}
+
+			//while(__sync_lock_test_and_set(&lock_s, 1))
+			//	continue;
 		}
 
 		SortedList_insert(myArg->head, myArg->elements[i]);
 
 		if (lock_switch == 'm')
 			pthread_mutex_unlock(&lock);
-		if (lock_switch == 's')
+		if (lock_switch == 's') {
+			//__sync_lock_release(&lock_s);
+			if (&lock_s == NULL) {
+				printf("Why...\n");
+				exit(1);
+			}
 			__sync_lock_release(&lock_s);
+		}
 	}
 
+	// TODO: uncomment this!
 	// gets the list length
 	//length = SortedList_length(myArg->head);
 
@@ -63,8 +79,16 @@ void *pthread_task(void *arg) {
 			pthread_mutex_lock(&lock);
 		if (lock_switch == 's') {
 			//printf("spin lock");
-			while(__sync_lock_test_and_set(&lock_s, 1))
-				continue;
+			while (1) {
+				if (&lock_s == NULL) {
+					printf("The f*ck??\n");
+					exit(1);
+				}
+				if (!(__sync_lock_test_and_set(&lock_s, 1)))
+					break;
+			}
+			//while(__sync_lock_test_and_set(&lock_s, 1))
+			//	continue;
 		}
 		
 		foundElement = SortedList_lookup(myArg->head, (myArg->elements[i])->key);
@@ -72,10 +96,48 @@ void *pthread_task(void *arg) {
 		
 		if (lock_switch == 'm')
 			pthread_mutex_unlock(&lock);
-		if (lock_switch == 's')
+		if (lock_switch == 's') {
+			if (&lock_s == NULL) {
+				printf("Why...\n");
+				exit(1);
+			}
 			__sync_lock_release(&lock_s);
+		}
 		//free(foundElement);
 		//foundElement = NULL;
+	}*/
+
+	switch (lock_switch) {
+		case 'n':
+			for (i = 0; i < myArg->nElements; i++) {
+				SortedList_insert(myArg->head, myArg->elements[i]);
+			}
+			for (i = 0; i < myArg->nElements; i++) {
+				foundElement = SortedList_lookup(myArg->head, (myArg->elements[i])->key);
+				SortedList_delete(foundElement);
+			}
+			break;
+
+		case 's':
+			for (i = 0; i < myArg->nElements; i++) {
+				while(__sync_lock_test_and_set(&lock_s, 1))
+					continue;
+				SortedList_insert(myArg->head, myArg->elements[i]);
+				__sync_lock_release(&lock_s);
+			}
+
+			for (i = 0; i < myArg->nElements; i++) {
+				while(__sync_lock_test_and_set(&lock_s, 1))
+					continue;
+				foundElement = SortedList_lookup(myArg->head, (myArg->elements[i])->key);
+				SortedList_delete(foundElement);
+				__sync_lock_release(&lock_s);
+			}
+			break;
+
+		default:
+			fprintf(stderr, "unrecognized sync type\n");
+			exit(1);
 	}
 }
 
@@ -121,7 +183,7 @@ int main(int argc, char *argv[])
 
 	// locks
 	lock_switch = 'n';	// none (n), mutex (m), spin (s)
-	lock_s = 0;
+	//lock_s = 0;
 
 	while ((option = getopt_long(argc, argv, "", input_options, &option_index)) != -1) {
 		switch (option) {
