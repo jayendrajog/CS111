@@ -20,33 +20,57 @@ enum OPTIONS {
 
 typedef struct pthread_package {
 	int nElements;				// number of elements to operate on (iterations)
-	SortedList_t * head;			// header of the list
+	//SortedList_t * head;			// header of the list
+	int nSublists;				// number of sublists
+	SortedList_t ** heads;			// array of headers
 	SortedListElement_t ** elements;	// the address of the first element to operate on
 } pthread_package_t;
 
 void *pthread_task(void *arg) {
 	pthread_package_t *myArg = (pthread_package_t *) arg;
-	int i, length;
+	int i, length, c;
+	unsigned int hashNum;
 	SortedListElement_t * foundElement;
+	const char *eleKey;
 
 	switch (lock_switch) {
 		case 'n':
 			for (i = 0; i < myArg->nElements; i++) {
+				// compute hash
+				// http://stackoverflow.com/questions/7666509/hash-function-for-string
+				hashNum = 5381;
+				eleKey = (myArg->elements[i])->key;
+				while (c = *eleKey++)
+					hashNum = ((hashNum << 5) + hashNum) + c;
+				hashNum = hashNum % myArg->nSublists;
+				//printf("hashNum is %d\n", hashNum);
 				// insert each element into the list
-				SortedList_insert(myArg->head, myArg->elements[i]);
+				SortedList_insert(myArg->heads[hashNum], myArg->elements[i]);
 			}
 
 			// gets the list length
-			length = SortedList_length(myArg->head);
+			for (i = 0; i < myArg->nSublists; i++) {
+				length = SortedList_length(myArg->heads[i]);
+				//printf("length is %d\n", length);
+			}
+			//length = SortedList_length(myArg->head);
 
 			for (i = 0; i < myArg->nElements; i++) {
+				// compute hash
+				// http://stackoverflow.com/questions/7666509/hash-function-for-string
+				hashNum = 5381;
+				eleKey = (myArg->elements[i])->key;
+				while (c = *eleKey++)
+					hashNum = ((hashNum << 5) + hashNum) + c;
+				hashNum = hashNum % myArg->nSublists;
+
 				// look up each of the keys it inserted
 				// deletes each returned element from the list
-				foundElement = SortedList_lookup(myArg->head, (myArg->elements[i])->key);
+				foundElement = SortedList_lookup(myArg->heads[hashNum], (myArg->elements[i])->key);
 				SortedList_delete(foundElement);
 			}
 			break;
-
+/*
 		case 's':
 			for (i = 0; i < myArg->nElements; i++) {
 				while(__sync_lock_test_and_set(&lock_s, 1))
@@ -54,6 +78,7 @@ void *pthread_task(void *arg) {
 				SortedList_insert(myArg->head, myArg->elements[i]);
 				__sync_lock_release(&lock_s);
 			}
+			// TODO: lock this too!
 			length = SortedList_length(myArg->head);
 			for (i = 0; i < myArg->nElements; i++) {
 				while(__sync_lock_test_and_set(&lock_s, 1))
@@ -73,6 +98,7 @@ void *pthread_task(void *arg) {
 			}
 
 			// gets the list length
+			// TODO: lock this too!
 			length = SortedList_length(myArg->head);
 
 			for (i = 0; i < myArg->nElements; i++) {
@@ -84,7 +110,7 @@ void *pthread_task(void *arg) {
 				pthread_mutex_unlock(&lock);
 			}
 			break;
-		default:
+*/		default:
 			fprintf(stderr, "unrecognized sync type\n");
 			exit(1);
 	}
@@ -97,6 +123,7 @@ int main(int argc, char *argv[])
 		{"iterations", required_argument, 0, ITERATIONS},
 		{"yield", required_argument, 0, YIELD},
 		{"sync", required_argument, 0, SYNC},
+		{"lists", required_argument, 0, LISTS},
 		{0,	0,	0,	0}
 	};
 	
@@ -133,6 +160,11 @@ int main(int argc, char *argv[])
 	// locks
 	lock_switch = 'n';	// none (n), mutex (m), spin (s)
 	//lock_s = 0;
+	
+	// sublists
+	int nSublist = 1;
+	SortedList_t ** sublistHeaders;
+	
 
 	while ((option = getopt_long(argc, argv, "", input_options, &option_index)) != -1) {
 		switch (option) {
@@ -165,23 +197,38 @@ int main(int argc, char *argv[])
 			case SYNC:
 				lock_switch = argv[optind-1][7];
 				break;
+			case LISTS:
+				nSublist = strtol(argv[optind-1]+8, NULL, 10);
+				break;
 			default:
 				;
 		}
 	}
 	
+	// initialize headers
+	sublistHeaders = malloc(sizeof(SortedList_t) * nSublist);
+	for (i = 0; i < nSublist; i++) {
+		list_header = malloc(sizeof(SortedList_t));
+		if (!list_header)
+			exit(1);	// TODO: cleanup
+		list_header->prev = NULL;
+		list_header->next = NULL;
+		list_header->key = NULL;
+		sublistHeaders[i] = list_header;	
+	}
+
 	// initialize empty list and elements
 	list_n_elements = n_threads * n_iterations;	// number of elements in list
-	list_header = malloc(sizeof(SortedList_t));	// header to list
+	//list_header = malloc(sizeof(SortedList_t));	// header to list
 	list_elements = malloc(sizeof(SortedListElement_t *) * list_n_elements);	// array of SortedListElement_t pointers	
-	if (!list_header || !list_elements) {
-		free(list_header);
+	if (!list_elements) {
+		//free(list_header);
 		free(list_elements);
 		exit(1);
 	}
-	list_header->prev = NULL;
-	list_header->next = NULL;
-	list_header->key = NULL;
+	//list_header->prev = NULL;
+	//list_header->next = NULL;
+	//list_header->key = NULL;
 
 	srand(time(NULL));	// initialize random seed
 	for (i = 0; i < list_n_elements; i++) {
@@ -215,7 +262,9 @@ int main(int argc, char *argv[])
 		if (!pthread_arg)	// TODO: cleanup
 			exit(1);
 		pthread_arg->nElements = n_iterations;
-		pthread_arg->head = list_header;
+		pthread_arg->nSublists = nSublist;
+		pthread_arg->heads = sublistHeaders;
+		//pthread_arg->head = list_header;
 		pthread_arg->elements = &(list_elements[i*n_iterations]);	// where it should start
 		ret = pthread_create(&tid[i], NULL, pthread_task, (void *) pthread_arg);
 		if (ret) {
