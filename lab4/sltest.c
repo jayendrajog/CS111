@@ -9,7 +9,8 @@ int opt_yield;
 //pthread_mutex_t lock;
 pthread_mutex_t * m_locks;
 char lock_switch;
-volatile static int lock_s = 0;	// spin lock
+//volatile static int lock_s = 0;	// spin lock
+static int * s_locks;
 
 enum OPTIONS {
 	THREADS,
@@ -71,25 +72,49 @@ void *pthread_task(void *arg) {
 				SortedList_delete(foundElement);
 			}
 			break;
-/*
 		case 's':
 			for (i = 0; i < myArg->nElements; i++) {
-				while(__sync_lock_test_and_set(&lock_s, 1))
-					continue;
-				SortedList_insert(myArg->head, myArg->elements[i]);
-				__sync_lock_release(&lock_s);
+				// compute hash
+				hashNum = 5381;
+				eleKey = (myArg->elements[i])->key;
+				while (c = *eleKey++)
+					hashNum = ((hashNum << 5) + hashNum) + c;
+				hashNum = hashNum % myArg->nSublists;
+				
+				// insert each element into the list
+				while(__sync_lock_test_and_set(&(s_locks[hashNum]), 1))
+					continue;	
+				SortedList_insert(myArg->heads[hashNum], myArg->elements[i]);
+				__sync_lock_release(&(s_locks[hashNum]));
 			}
-			// TODO: lock this too!
-			length = SortedList_length(myArg->head);
+
+			// gets the list length
+			for (i = 0; i < myArg->nSublists; i++) {
+				while(__sync_lock_test_and_set(&(s_locks[i]), 1))
+					continue;	
+				length = SortedList_length(myArg->heads[i]);
+				__sync_lock_release(&(s_locks[i]));
+				//printf("length is %d\n", length);
+			}
+	
 			for (i = 0; i < myArg->nElements; i++) {
-				while(__sync_lock_test_and_set(&lock_s, 1))
-					continue;
-				foundElement = SortedList_lookup(myArg->head, (myArg->elements[i])->key);
+				// compute hash
+				hashNum = 5381;
+				eleKey = (myArg->elements[i])->key;
+				while (c = *eleKey++)
+					hashNum = ((hashNum << 5) + hashNum) + c;
+				hashNum = hashNum % myArg->nSublists;
+
+				// look up each of the keys it inserted
+				// deletes each returned element from the list
+				while(__sync_lock_test_and_set(&(s_locks[hashNum]), 1))
+					continue;	
+				foundElement = SortedList_lookup(myArg->heads[hashNum], (myArg->elements[i])->key);
 				SortedList_delete(foundElement);
-				__sync_lock_release(&lock_s);
+				__sync_lock_release(&(s_locks[hashNum]));
 			}
+			
 			break;
-*/
 		case 'm':
 			for (i = 0; i < myArg->nElements; i++) {
 				// compute hash
@@ -261,7 +286,7 @@ int main(int argc, char *argv[])
 		list_elements[i] = list_ele;
 	}
 
-	// initialize mutex lock
+	// initialize locks
 	if (lock_switch == 'm') {
 		m_locks = malloc(sizeof(pthread_mutex_t) * nSublist);
 		for (i = 0; i < nSublist; i++) {		
@@ -270,6 +295,10 @@ int main(int argc, char *argv[])
 				exit(1);	// TODO: cleanup
 			}
 		}
+	} else if (lock_switch == 's') {
+		s_locks = malloc(sizeof(int) * nSublist);
+		for (i = 0; i< nSublist; i++)
+			s_locks[i] = 0;
 	}
 
 	// start the timer	
