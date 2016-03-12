@@ -1,6 +1,6 @@
 
 CC = gcc
-CFLAGS = -O2 -lrt
+CFLAGS = -O2 -lrt -pthread
 
 #default: sltest
 default: sltest addtest
@@ -11,7 +11,7 @@ sltest: sltest.c SortedList.o
 	$(CC) $(CFLAGS) $^ -o $@
 
 addtest: addtest.c
-	gcc -pthread -o addtest addtest.c
+	gcc -lrt -pthread -o addtest addtest.c
 #sltest: sltest.o
 #	$(CC) $(CFLAGS) $^ -o $@
 
