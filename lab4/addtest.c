@@ -1,9 +1,10 @@
+#define _GNU_SOURCE 
 #include <stdio.h>
 #include <time.h> //clock_gettime
 #include <pthread.h> //threads
 #include <stdlib.h>
 
-#define _GNU_SOURCE //for pthread_yield
+//for pthread_yield
 #define P_MUTEX 1
 #define S_LOCK 2
 #define S_ATOMIC 3
@@ -151,7 +152,10 @@ int parameter_check(char* argv[], int pos)
 				else if (argv[pos][index] == 'c')
 					sync_option = S_ATOMIC;
 				else
+					{
 					printf("ERROR: invalid input for sync");
+					return 1;
+					}
 			}
 			else 
 			{
