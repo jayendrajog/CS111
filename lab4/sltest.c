@@ -6,7 +6,8 @@
 #include "SortedList.h"
 
 int opt_yield;
-pthread_mutex_t lock;
+//pthread_mutex_t lock;
+pthread_mutex_t * m_locks;
 char lock_switch;
 volatile static int lock_s = 0;	// spin lock
 
@@ -88,29 +89,48 @@ void *pthread_task(void *arg) {
 				__sync_lock_release(&lock_s);
 			}
 			break;
-
+*/
 		case 'm':
 			for (i = 0; i < myArg->nElements; i++) {
+				// compute hash
+				hashNum = 5381;
+				eleKey = (myArg->elements[i])->key;
+				while (c = *eleKey++)
+					hashNum = ((hashNum << 5) + hashNum) + c;
+				hashNum = hashNum % myArg->nSublists;
+				
 				// insert each element into the list
-				pthread_mutex_lock(&lock);
-				SortedList_insert(myArg->head, myArg->elements[i]);
-				pthread_mutex_unlock(&lock);
+				pthread_mutex_lock(&(m_locks[hashNum]));
+				SortedList_insert(myArg->heads[hashNum], myArg->elements[i]);
+				pthread_mutex_unlock(&(m_locks[hashNum]));
 			}
 
 			// gets the list length
-			// TODO: lock this too!
-			length = SortedList_length(myArg->head);
-
+			for (i = 0; i < myArg->nSublists; i++) {
+				pthread_mutex_lock(&(m_locks[i]));
+				length = SortedList_length(myArg->heads[i]);
+				pthread_mutex_unlock(&(m_locks[i]));
+				//printf("length is %d\n", length);
+			}
+	
 			for (i = 0; i < myArg->nElements; i++) {
+				// compute hash
+				hashNum = 5381;
+				eleKey = (myArg->elements[i])->key;
+				while (c = *eleKey++)
+					hashNum = ((hashNum << 5) + hashNum) + c;
+				hashNum = hashNum % myArg->nSublists;
+
 				// look up each of the keys it inserted
 				// deletes each returned element from the list
-				pthread_mutex_lock(&lock);
-				foundElement = SortedList_lookup(myArg->head, (myArg->elements[i])->key);
+				pthread_mutex_lock(&(m_locks[hashNum]));
+				foundElement = SortedList_lookup(myArg->heads[hashNum], (myArg->elements[i])->key);
 				SortedList_delete(foundElement);
-				pthread_mutex_unlock(&lock);
+				pthread_mutex_unlock(&(m_locks[hashNum]));
 			}
+			
 			break;
-*/		default:
+		default:
 			fprintf(stderr, "unrecognized sync type\n");
 			exit(1);
 	}
@@ -235,7 +255,6 @@ int main(int argc, char *argv[])
 		list_ele = malloc(sizeof(SortedListElement_t));	// TODO: check list_ele != NULL
 		if (!list_ele)	// TODO: cleanup
 			exit(1);
-
 		list_rand_key = malloc(sizeof(char) * 8);
 		sprintf(list_rand_key, "%d", rand() % 99999999);
 		list_ele->key = list_rand_key;	// TODO: I'm not sure if we need to malloc for key
@@ -244,9 +263,12 @@ int main(int argc, char *argv[])
 
 	// initialize mutex lock
 	if (lock_switch == 'm') {
-		if (pthread_mutex_init(&lock, NULL)) {
-			printf("\n mutex init failed\n");
-			exit(1);	// TODO: cleanup
+		m_locks = malloc(sizeof(pthread_mutex_t) * nSublist);
+		for (i = 0; i < nSublist; i++) {		
+			if (pthread_mutex_init(&(m_locks[i]), NULL)) {
+				printf("\n mutex init failed\n");
+				exit(1);	// TODO: cleanup
+			}
 		}
 	}
 
