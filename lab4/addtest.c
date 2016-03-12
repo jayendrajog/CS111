@@ -235,8 +235,8 @@ int main(int argc, char *argv[])
 	printf("%d threads x %d iterations x (add + subtract) = %d operations\n", num_threads, num_iters, num_operations);
 	if(counter != 0)
 		printf("ERROR: final count = %lld\n", counter);
-	printf("elapsed time: %lld ns\n", end.tv_nsec - start.tv_nsec);
-	printf("per operation: %lld ns\n", (end.tv_nsec - start.tv_nsec)/num_operations);
+	printf("elapsed time: %lld ns\n", (end.tv_sec - start.tv_sec)*1000000000 + end.tv_nsec - start.tv_nsec);
+	printf("per operation: %lld ns\n", ((end.tv_sec - start.tv_sec)*1000000000 + end.tv_nsec - start.tv_nsec)/num_operations);
 	return 0;
 }
 
