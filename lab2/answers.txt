@@ -10,12 +10,12 @@
 
 # Partner 1
 Name: Jayendra Jog
-Student ID: 904437296
+Student ID: <removed>
 Email: jayendra@ucla.edu
 
 #Partner 2
 Name: Yu-Kuan (Anthony) Lai 
-Student ID: 004445644
+Student ID: <removed>
 Email: yukuan.anthony.lai@gmail.com
 
 
